@@ -587,7 +587,7 @@ process FILTER_READS_BY_CLASSIFICATIONS {
   taxids_arg = taxids ? " --taxids $taxids" : ""
   """
   filter_classified_reads \\
-    ${taxids_arg}
+    ${taxids_arg} \\
     -i $reads \\
     -o $filtered_reads \\
     -c $centrifuge_results \\
