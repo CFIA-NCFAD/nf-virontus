@@ -1,5 +1,5 @@
 Bootstrap:docker
-From:continuumio/miniconda3:4.7.12
+From:continuumio/miniconda3:4.8.2
 
 %labels
     MAINTAINER Peter Kruczkiewicz
@@ -8,11 +8,10 @@ From:continuumio/miniconda3:4.7.12
 
 %environment
     PATH=/opt/conda/envs/nf-virontus-1.0.0/bin:$PATH
-    PATH=/opt/guppy/bin:$PATH
     export PATH
 
 %files
-    environment.yml /
+    environment.1.0.0.yml /environment.yml
 
 %post
     export PATH=/opt/conda/bin:$PATH

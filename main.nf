@@ -8,11 +8,6 @@ if (!nextflow.version.matches("${min_nextflow_version}+")) {
   exit 1
 }
 
-valid_barcode_kits = ['EXP-NBD103', 'EXP-NBD104', 'EXP-NBD114', 'EXP-PBC001',
-  'EXP-PBC096', 'SQK-16S024', 'SQK-LWB001', 'SQK-PBK004', 'SQK-RAB201',
-  'SQK-RAB204', 'SQK-RBK001', 'SQK-RBK004', 'SQK-RLB001', 'SQK-RPB004',
-  'VSK-VMK001', 'VSK-VMK002'] as Set
-
 def helpMessage() {
   // Log colors ANSI codes
   c_reset = params.monochrome_logs ? '' : "\033[0m";
@@ -38,13 +33,12 @@ def helpMessage() {
     ${c_ul}Git info:${c_reset} $workflow.repository - $workflow.revision [$workflow.commitId]
 
   ${c_bul}Usage:${c_reset}
-  The typical command for running the pipeline is as follows:
+  Given some barcoded and demultiplexed reads, the typical command for running the pipeline is as follows:
   
     nextflow run ${workflow.manifest.name} \\
       ${c_red}--reads "${params.reads}"${c_reset} \\
       ${c_green}--outdir ${params.outdir}${c_reset} \\
       --ref_fasta refs.fa \\
-      --barcode_kit $params.barcode_kit \\
       -profile singularity # recommended to run with Singularity
 
   The above ${c_bul}assumes${c_reset} that you have a ${c_cyan}Centrifuge DB${c_reset} and ${c_purple}Kraken2 DB${c_reset} located at
@@ -64,9 +58,6 @@ def helpMessage() {
     ${c_red}--reads${c_reset}   Input reads directory and pattern (default: ${c_red}"${params.reads}"${c_reset})
     --ref_fasta      Reference genomes multiFASTA file (one or more references
                      in a single file) (default: "${file(params.ref_fasta)}")
-
-  ${c_bul}Barcoding Options:${c_reset}
-    --barcode_kit    Nanopore barcoding kit (default: "$params.barcode_kit")
 
   ${c_bul}Cluster Options:${c_reset}
     --slurm_queue     Name of SLURM queue to run workflow on; use with ${c_dim}-profile slurm${c_reset}
@@ -104,9 +95,6 @@ def helpMessage() {
   It is recommended that this workflow be executed with Singularity using the 
   Singularity profile (`-profile singularity`) for maximum reproducibility and
   ease of execution on different platforms.
-
-  Nanopore barcoding kit (`--barcode_kit`) must be one of:
-  ${valid_barcode_kits.join(', ')}
   """.stripIndent()
 }
 //=============================================================================
@@ -182,11 +170,6 @@ def checkTaxids(taxids) {
 //=============================================================================
 if (workflow.profile == 'slurm' && params.slurm_queue == "") {
   log.error "You must specify a valid SLURM queue (e.g. '--slurm_queue <queue name>' (see `\$ sinfo` output for available queues)) to run this workflow with the 'slurm' profile!"
-  exit 1
-}
-
-if (!(params.barcode_kit in valid_barcode_kits)) {
-  log.error "Invalid barcode kit '${params.barcode_kit}'! Must be one of '${valid_barcode_kits}'"
   exit 1
 }
 
@@ -272,62 +255,23 @@ EOF
   """
 }
 
-process BARCODER {
-  tag "$fastq_name"
-
-  input:
-    file(fastq)
-
-  output:
-    path('**/*.fastq.gz')
-
-  script:
-  fastq_name = fastq.getBaseName()
-  """
-  guppy_barcoder \\
-    -i ./ \\
-    -s ./ \\
-    --barcode_kits ${params.barcode_kit} \\
-    --trim_barcodes \\
-    --detect_mid_strand_barcodes \\
-    --compress_fastq \\
-    -q 0 \\
-    -t ${task.cpus}
-  """
-}
-
-process CAT_FASTQS {
-  tag "$barcode"
-
-  input:
-    tuple val(barcode),
-          path('reads*.fastq.gz')
-  output:
-    tuple val(barcode),
-          path("${barcode}.fastq.gz")
-
-  """
-  cat reads*.fastq.gz > ${barcode}.fastq.gz
-  """
-}
-
 process MAP {
-  tag "$barcode VS $ref_fasta"
-  publishDir "${params.outdir}/mapping/$barcode/bamfiles", pattern: "*.bam"
+  tag "$sample VS $ref_fasta"
+  publishDir "${params.outdir}/mapping/$sample/bamfiles", pattern: "*.bam"
   publishDir "${params.outdir}/refs", pattern: "*.fasta", mode: 'copy'
 
   input:
-    tuple barcode, 
+    tuple sample, 
           path(fastq), 
           path(ref_fasta)
   output:
-    tuple barcode, 
+    tuple sample, 
           path(ref_fasta),
           path(bam)
 
   script:
   ref_name = ref_fasta.getBaseName()
-  bam = "${barcode}-${ref_name}.bam"
+  bam = "${sample}-${ref_name}.bam"
   """
   minimap2 \\
     -ax map-ont \\
@@ -340,16 +284,16 @@ process MAP {
 }
 
 process MAP_STATS {
-  tag "$barcode VS segment $ref_name"
-  publishDir "${params.outdir}/mapping/$barcode", mode: 'copy', pattern: "*.{tsv,flagstat,idxstats}"
+  tag "$sample VS segment $ref_name"
+  publishDir "${params.outdir}/mapping/$sample", mode: 'copy', pattern: "*.{tsv,flagstat,idxstats}"
 
   input:
-    tuple val(barcode),
+    tuple val(sample),
           path(ref_fasta),
           path(bam)
 
   output:
-    tuple val(barcode),
+    tuple val(sample),
           path(ref_fasta),
           path(bam),
           path(depths),
@@ -357,37 +301,37 @@ process MAP_STATS {
           path(idxstats)
   script:
   ref_name = ref_fasta.getBaseName()
-  depths = "${barcode}-${ref_name}-depths.tsv"
-  flagstat = "${barcode}-${ref_name}.flagstat"
-  idxstats = "${barcode}-${ref_name}.idxstats"
+  depths = "${sample}-${ref_name}-depths.tsv"
+  flagstat = "${sample}-${ref_name}.flagstat"
+  idxstats = "${sample}-${ref_name}.idxstats"
   """
   samtools flagstat $bam > $flagstat
-  samtools depth -a -d 0 $bam | perl -ne 'chomp \$_; print "${barcode}\t\$_\n"' > $depths
-  samtools idxstats $bam | head -n1 | perl -ne 'chomp \$_; print "${barcode}\t\$_\n"' > $idxstats
+  samtools depth -a -d 0 $bam | perl -ne 'chomp \$_; print "${sample}\t\$_\n"' > $depths
+  samtools idxstats $bam | head -n1 | perl -ne 'chomp \$_; print "${sample}\t\$_\n"' > $idxstats
   """
 }
 
 //TODO: filter empty mpileup results or ignore errors
 process BCF_CALL {
-  tag "$barcode - $ref_name"
+  tag "$sample - $ref_name"
   publishDir "${params.outdir}/bcftools/call", mode: 'copy', pattern: '*.bcf'
 
   input:
-    tuple val(barcode),
+    tuple val(sample),
           path(ref_fasta),
           path(bam),
           path(depths),
           path(flagstat),
           path(idxstats)
   output:
-    tuple val(barcode),
+    tuple val(sample),
           path(ref_fasta),
           path(bam),
           path(depths),
           path(bcf)
   script:
   ref_name = ref_fasta.getBaseName()
-  bcf = "${barcode}-${ref_name}.bcf"
+  bcf = "${sample}-${ref_name}.bcf"
   """
   bcftools mpileup --threads ${task.cpus} \\
       -f $ref_fasta \\
@@ -404,26 +348,26 @@ process BCF_CALL {
 // - Maximum fraction of reads supporting an indel is 0.5 or greater (IMF)
 // - Depth of coverage of ALT allele is greater than REF allele coverage
 process BCF_FILTER {
-  tag "$barcode - $ref_name"
+  tag "$sample - $ref_name"
   publishDir "${params.outdir}/bcftools/call",
-    pattern: "*.filt.vcf.gz",
+    pattern: "*.filt.vcf",
     mode: 'copy'
 
   input:
-    tuple val(barcode),
+    tuple val(sample),
           path(ref_fasta),
           path(bam),
           path(depths),
           path(bcf)
   output:
-    tuple val(barcode),
+    tuple val(sample),
           path(ref_fasta),
           path(bam),
           path(depths),
-          path(filt_vcfgz)
+          path(filt_vcf)
   script:
   ref_name = ref_fasta.getBaseName()
-  filt_vcfgz = "${barcode}-${ref_name}.filt.vcf.gz"
+  filt_vcf = "${sample}-${ref_name}.filt.vcf"
   """
   bcftools norm --threads ${task.cpus} \\
     -f $ref_fasta \\
@@ -432,25 +376,25 @@ process BCF_FILTER {
   | bcftools filter \\
     -e 'IMF<0.5 || (DP4[0]+DP4[1])>(DP4[2]+DP4[3])' \\
     - \\
-    -Oz \\
-    -o $filt_vcfgz
+    -O \\
+    -o $filt_vcf
   """
 }
 
 process CONSENSUS {
-  tag "$barcode - $ref_name"
+  tag "$sample - $ref_name"
   publishDir "${params.outdir}/bcftools/consensus", 
     pattern: "*.consensus.fasta",
     mode: 'copy'
 
   input:
-    tuple val(barcode),
+    tuple val(sample),
           path(ref_fasta),
           path(bam),
           path(depths),
-          path(filt_vcfgz)
+          path(filt_vcf)
   output:
-    tuple val(barcode),
+    tuple val(sample),
           path(ref_fasta),
           path(bam),
           path(depths),
@@ -458,49 +402,23 @@ process CONSENSUS {
 
   script:
   ref_name = ref_fasta.getBaseName()
-  consensus = "${barcode}-${ref_name}.consensus.fasta"
+  consensus = "${sample}-${ref_name}.consensus.fasta"
   """
-  bcftools index $filt_vcfgz
-  bcftools consensus -f $ref_fasta $filt_vcfgz > $consensus
-  """
-}
-
-process FIX_CONSENSUS {
-  publishDir "${params.outdir}/consensus",
-    pattern: "*.fixed_consensus.fasta",
-    mode: 'copy'
-
-  input:
-    tuple val(barcode),
-          path(ref_fasta),
-          path(bam),
-          path(depths),
-          path(consensus)
-  output:
-    tuple val(barcode),
-          path(ref_fasta),
-          path(bam),
-          path(depths),
-          path(fixed_consensus) optional true
-
-  script:
-  ref_name = ref_fasta.getBaseName()
-  fixed_consensus = "${barcode}-${ref_name}.fixed_consensus.fasta"
-  low_cov_char = "N"
-  cov_threshold = 1
-  """
-  fix_consensus.py \\
-    -s $consensus \\
+  vcf_consensus_builder \\
+    -v $filt_vcf \\
     -d $depths \\
-    -o $fixed_consensus \\
-    --cov-threshold $cov_threshold \\
-    --low-cov-char $low_cov_char \\
-    --sample-name "$barcode"
+    -r $ref_fasta \\
+    -o $consensus \\
+    --low-coverage $params.low_coverage \\
+    --no-coverage $params.no_coverage \\
+    --low-cov-char $params.low_cov_char \\
+    --no-cov-char $params.no_cov_char \\
+    --sample-name $sample
   """
 }
 
 process KRAKEN2 {
-  tag "$barcode"
+  tag "$sample"
   publishDir "${params.outdir}/kraken2/results",
     pattern: "*-kraken2_results.tsv",
     mode: 'copy'
@@ -510,17 +428,17 @@ process KRAKEN2 {
 
   input:
     path(db)
-    tuple val(barcode), 
+    tuple val(sample), 
           path(reads)
   output:
-    tuple val(barcode),
+    tuple val(sample),
           path(reads),
           path(results),
           path(report)
 
   script:
-  results = "${barcode}-kraken2_results.tsv"
-  report = "${barcode}-kraken2_report.tsv"
+  results = "${sample}-kraken2_results.tsv"
+  report = "${sample}-kraken2_report.tsv"
   """
   kraken2 \\
     --threads ${task.cpus} \\
@@ -533,8 +451,8 @@ process KRAKEN2 {
 }
 
 process CENTRIFUGE {
-  tag "$barcode"
-  publishDir "${params.outdir}/centrifuge/$barcode",
+  tag "$sample"
+  publishDir "${params.outdir}/centrifuge/$sample",
     pattern: "*.tsv",
     mode: 'copy'
   publishDir "${params.outdir}/centrifuge",
@@ -544,17 +462,17 @@ process CENTRIFUGE {
   input:
     tuple db_name, 
           path(db)
-    tuple val(barcode),
+    tuple val(sample),
           path(reads)
   output:
-    tuple val(barcode),
+    tuple val(sample),
           path(reads),
           path(results),
           path(kreport)
 
   script:
-  results = "${barcode}-centrifuge_results.tsv"
-  kreport = "${barcode}-kreport.tsv"
+  results = "${sample}-centrifuge_results.tsv"
+  kreport = "${sample}-kreport.tsv"
   """
   centrifuge \\
     -x ${db}/${db_name} \\
@@ -566,24 +484,25 @@ process CENTRIFUGE {
 }
 
 process FILTER_READS_BY_CLASSIFICATIONS {
-  tag "$barcode"
+  tag "$sample"
   publishDir "${params.outdir}/filtered_reads/", 
     pattern: "*.viral_unclassified.fastq", 
     mode: 'copy'
+  errorStrategy 'ignore'
 
   input:
-    tuple barcode,
+    tuple sample,
           path(reads),
           path(kraken2_results),
           path(kraken2_report),
           path(centrifuge_results),
           path(centrifuge_report)
   output:
-    tuple barcode,
+    tuple sample,
           path(filtered_reads) optional true
 
   script:
-  filtered_reads = "${barcode}.viral_unclassified.fastq"
+  filtered_reads = "${sample}.viral_unclassified.fastq"
   taxids_arg = taxids ? " --taxids $taxids" : ""
   """
   filter_classified_reads \\
@@ -598,38 +517,38 @@ process FILTER_READS_BY_CLASSIFICATIONS {
 }
 
 process UNICYCLER_ASSEMBLY {
-  tag "$barcode"
-  publishDir "${params.outdir}/assemblies/unicycler/$barcode", mode: 'copy'
+  tag "$sample"
+  publishDir "${params.outdir}/assemblies/unicycler/$sample", mode: 'copy'
   errorStrategy 'ignore'
 
   input:
-    tuple val(barcode),
+    tuple val(sample),
           path(reads)
   output:
-    tuple val(barcode),
+    tuple val(sample),
           val('unicycler'),
-          path("${barcode}/")
+          path("${sample}/")
 
   script:
-  output_contigs = "${barcode}-assembly.fasta"
-  output_gfa = "${barcode}-assembly.gfa"
-  output_unicycler_log = "${barcode}-unicycler.log"
+  output_contigs = "${sample}-assembly.fasta"
+  output_gfa = "${sample}-assembly.gfa"
+  output_unicycler_log = "${sample}-unicycler.log"
   """
-  unicycler -t ${task.cpus} --mode ${params.unicycler_mode} -o $barcode -l $reads
-  ln -s ${barcode}/assembly.fasta $output_contigs
-  ln -s ${barcode}/assembly.gfa $output_gfa
-  ln -s ${barcode}/unicycler.log $output_unicycler_log
+  unicycler -t ${task.cpus} --mode ${params.unicycler_mode} -o $sample -l $reads
+  ln -s ${sample}/assembly.fasta $output_contigs
+  ln -s ${sample}/assembly.gfa $output_gfa
+  ln -s ${sample}/unicycler.log $output_unicycler_log
   """
 }
 
 // TODO: try flye assembly with different genome sizes derived from classification results?
 process FLYE_ASSEMBLY {
-  tag "$barcode"
-  publishDir "${params.outdir}/assemblies/flye/$barcode", mode: 'copy'
+  tag "$sample"
+  publishDir "${params.outdir}/assemblies/flye/$sample", mode: 'copy'
   errorStrategy 'ignore'
 
   input:
-    tuple val(barcode),
+    tuple val(sample),
           path(reads)
   output:
     path("out/")
@@ -665,22 +584,15 @@ workflow {
     .splitFasta( record: [id: true, desc: true, sequence: true] ) \
     | REC2FASTA 
 
-  Channel.fromPath(params.reads) \
-    | BARCODER \
-    | flatMap \
-    | map { [file(it).getParent().getName(), it] } \
-    | groupTuple \
-    | CAT_FASTQS
-
-  // Map barcoded reads against each reference genome sequence
-  // - Combine each ref seq with each barcoded reads
+  // Map each sample's reads against each reference genome sequence
+  // - Combine each ref seq with each sample's reads
   // - map reads against ref
   // - samtools stats for mapping
   // - BCF mpileup and calling
   // - BCF filtering
   // - bcftools consensus
   // - fix consensus (mask low coverage positions)
-  CAT_FASTQS.out \
+  Channel.fromPath(params.reads) \
     | combine(REC2FASTA.out) \
     | MAP \
     | MAP_STATS \
@@ -694,17 +606,16 @@ workflow {
     } \
     | BCF_CALL \
     | BCF_FILTER \
-    | CONSENSUS \
-    | FIX_CONSENSUS
+    | CONSENSUS
 
   // Metagenomic classification by Kraken2 and Centrifuge
   KRAKEN2(ch_kraken2_db, CAT_FASTQS.out)
   CENTRIFUGE(ch_centrifuge_db, CAT_FASTQS.out)
   // Join Kraken2 and Centrifuge classification results
   ch_k2_cent_res = KRAKEN2.out.join(CENTRIFUGE.out, remainder: true)
-    .map { barcode, reads, kraken2_results, kraken2_report, _r, centrifuge_results, centrifuge_kreport -> 
+    .map { sample, reads, kraken2_results, kraken2_report, _r, centrifuge_results, centrifuge_kreport -> 
       [
-        barcode, 
+        sample, 
         reads, 
         kraken2_results, 
         kraken2_report, 
