@@ -2,12 +2,6 @@
 
 nextflow.preview.dsl = 2
 
-min_nextflow_version = '19.10'
-if (!nextflow.version.matches("${min_nextflow_version}+")) {
-  log.error "This workflow requires Nextflow version $min_nextflow_version or greater. You are running version $nextflow.version! Please install a newer version or run `nextflow self-update` to self-update Nextflow."
-  exit 1
-}
-
 def helpMessage() {
   // Log colors ANSI codes
   c_reset = params.monochrome_logs ? '' : "\033[0m";
@@ -58,6 +52,9 @@ def helpMessage() {
     ${c_red}--reads${c_reset}   Input reads directory and pattern (default: ${c_red}"${params.reads}"${c_reset})
     --ref_fasta      Reference genomes multiFASTA file (one or more references
                      in a single file) (default: "${file(params.ref_fasta)}")
+  ${c_bul}Amplicon Sequencing Options:${c_reset}
+    --bedfile        BED format file with amplicon sequencing primers info (optional). 
+                     Produced as output from PrimalScheme.
 
   ${c_bul}Cluster Options:${c_reset}
     --slurm_queue     Name of SLURM queue to run workflow on; use with ${c_dim}-profile slurm${c_reset}
@@ -239,6 +236,7 @@ log.info "========================================="
 // FASTA record to file
 process REC2FASTA {
   tag "${record.id} - ${record.desc} - ${record.sequence.size()}"
+  publishDir "${params.outdir}/refs", pattern: "*.fa", mode: 'copy'
 
   input:
     val(record)
@@ -258,7 +256,6 @@ EOF
 process MAP {
   tag "$sample VS $ref_fasta"
   publishDir "${params.outdir}/mapping/$sample/bamfiles", pattern: "*.bam"
-  publishDir "${params.outdir}/refs", pattern: "*.fasta", mode: 'copy'
 
   input:
     tuple sample, 
@@ -280,6 +277,31 @@ process MAP {
     $fastq \\
     | samtools sort -@${task.cpus} \\
     | samtools view -F4 -b -o $bam -
+  """
+}
+
+process IVAR_TRIM {
+  publishDir "${params.outdir}/mapping/$sample/bamfiles", pattern: "*.trim.bam"
+  input:
+    path(bedfile)
+    tuple sample,
+          path(ref_fasta),
+          path(bam)
+  output:
+    tuple sample,
+          path(ref_fasta),
+          path(trimmed_bam)
+
+  script:
+  ref_name = ref_fasta.getBaseName()
+  trimmed_bam = "${sample}-${ref_name}.trim.bam"
+  """
+  ivar trim \\
+    -i $bam \\
+    -b $bedfile \\
+    -p trim -q 1 -m 20 -s 4 -e
+  samtools sort -o $trimmed_bam trim.bam
+  rm trim.bam
   """
 }
 
@@ -311,10 +333,9 @@ process MAP_STATS {
   """
 }
 
-//TODO: filter empty mpileup results or ignore errors
-process BCF_CALL {
+process MEDAKA {
   tag "$sample - $ref_name"
-  publishDir "${params.outdir}/bcftools/call", mode: 'copy', pattern: '*.bcf'
+  publishDir "${params.outdir}/medaka", mode: 'copy', pattern: '*.vcf'
 
   input:
     tuple val(sample),
@@ -328,28 +349,55 @@ process BCF_CALL {
           path(ref_fasta),
           path(bam),
           path(depths),
-          path(bcf)
+          path(vcf)
   script:
   ref_name = ref_fasta.getBaseName()
-  bcf = "${sample}-${ref_name}.bcf"
+  vcf = "${sample}-${ref_name}.medaka.vcf"
   """
-  bcftools mpileup --threads ${task.cpus} \\
-      -f $ref_fasta \\
-      $bam \\
-      -Q 3 \\
-      -Ou \\
-  | bcftools call --threads ${task.cpus} \\
-    -mv - \\
-    -o $bcf
+  samtools index $bam
+  medaka consensus --chunk_len 800 --chunk_ovlp 400 $bam ${bam}.hdf
+  medaka variant $ref_fasta ${bam}.hdf $vcf
   """
 }
+
+process LONGSHOT {
+  tag "$sample - $ref_name"
+  publishDir "${params.outdir}/longshot", mode: 'copy', pattern: '*.vcf'
+
+  input:
+    tuple val(sample),
+          path(ref_fasta),
+          path(bam),
+          path(depths),
+          path(medaka_vcf)
+  output:
+    tuple val(sample),
+          path(ref_fasta),
+          path(bam),
+          path(depths),
+          path(longshot_vcf)
+  script:
+  ref_name = ref_fasta.getBaseName()
+  longshot_vcf = "${sample}-${ref_name}.longshot.vcf"
+  script:
+  """
+  samtools faidx $ref_fasta
+  samtools index $bam
+  longshot -P 0 -F -A --no_haps \\
+    --potential_variants $medaka_vcf \\
+    --bam $bam \\
+    --ref $ref_fasta \\
+    --out $longshot_vcf
+  """
+}
+
 
 // Filter for variants that meet the following criteria:
 // - Maximum fraction of reads supporting an indel is 0.5 or greater (IMF)
 // - Depth of coverage of ALT allele is greater than REF allele coverage
 process BCF_FILTER {
   tag "$sample - $ref_name"
-  publishDir "${params.outdir}/bcftools/call",
+  publishDir "${params.outdir}/medaka",
     pattern: "*.filt.vcf",
     mode: 'copy'
 
@@ -358,7 +406,7 @@ process BCF_FILTER {
           path(ref_fasta),
           path(bam),
           path(depths),
-          path(bcf)
+          path(vcf)
   output:
     tuple val(sample),
           path(ref_fasta),
@@ -371,7 +419,7 @@ process BCF_FILTER {
   """
   bcftools norm --threads ${task.cpus} \\
     -f $ref_fasta \\
-    $bcf \\
+    $vcf \\
     -Ob \\
   | bcftools filter \\
     -e 'IMF<0.5 || (DP4[0]+DP4[1])>(DP4[2]+DP4[3])' \\
@@ -567,18 +615,6 @@ process FLYE_ASSEMBLY {
 //=============================================================================
 workflow {
 
-  // Centrifuge DB input channel
-  Channel.value( 
-    [ 
-      file(params.centrifuge_db).getName(), 
-      file(params.centrifuge_db).getParent() 
-    ] )
-    .set { ch_centrifuge_db }
-
-  // Kraken2 DB input channel
-  Channel.value( file(params.kraken2_db) )
-    .set { ch_kraken2_db }
-
   // Reference genome FASTA input channel
   Channel.fromPath( params.ref_fasta )
     .splitFasta( record: [id: true, desc: true, sequence: true] ) \
@@ -587,15 +623,23 @@ workflow {
   // Map each sample's reads against each reference genome sequence
   // - Combine each ref seq with each sample's reads
   // - map reads against ref
-  // - samtools stats for mapping
-  // - BCF mpileup and calling
-  // - BCF filtering
-  // - bcftools consensus
-  // - fix consensus (mask low coverage positions)
-  Channel.fromPath(params.reads) \
+  Channel.fromPath(params.reads)
+    .map {
+      [file(it).getBaseName(), it]
+    } \
     | combine(REC2FASTA.out) \
-    | MAP \
-    | MAP_STATS \
+    | MAP 
+
+  // Trim primer sequences from read alignments if primer scheme BED file provided 
+  if (params.bedfile) {
+    Channel.value( file(params.bedfile) )
+      .set { ch_bedfile}
+    IVAR_TRIM(ch_bedfile, MAP.out) | MAP_STATS
+  } else {
+    MAP_STATS(MAP.out)
+  }
+
+  MAP_STATS.out \
     | filter { 
       // Filter for alignments that did have some reads mapping to the ref genome
       depth_linecount = file(it[3]).readLines().size()
@@ -604,30 +648,58 @@ workflow {
       }
       depth_linecount > 2
     } \
-    | BCF_CALL \
-    | BCF_FILTER \
+    | MEDAKA \
+    | LONGSHOT \
     | CONSENSUS
 
-  // Metagenomic classification by Kraken2 and Centrifuge
-  KRAKEN2(ch_kraken2_db, CAT_FASTQS.out)
-  CENTRIFUGE(ch_centrifuge_db, CAT_FASTQS.out)
-  // Join Kraken2 and Centrifuge classification results
-  ch_k2_cent_res = KRAKEN2.out.join(CENTRIFUGE.out, remainder: true)
-    .map { sample, reads, kraken2_results, kraken2_report, _r, centrifuge_results, centrifuge_kreport -> 
-      [
-        sample, 
-        reads, 
-        kraken2_results, 
-        kraken2_report, 
-        centrifuge_results, 
-        centrifuge_kreport
-      ]
-    }
 
-  FILTER_READS_BY_CLASSIFICATIONS(ch_k2_cent_res)
-  if (params.do_unicycler_assembly) {
-    UNICYCLER_ASSEMBLY(FILTER_READS_BY_CLASSIFICATIONS.out)
+
+  if (params.kraken2_db) {
+    // Kraken2 DB input channel
+    Channel.value( file(params.kraken2_db) )
+      .set { ch_kraken2_db }
+
+    // Metagenomic classification by Kraken2 and Centrifuge
+    KRAKEN2(ch_kraken2_db, CAT_FASTQS.out)  
   }
+  
+  if (params.centrifuge_db) {
+    // Centrifuge DB input channel
+    Channel.value( 
+      [ 
+        file(params.centrifuge_db).getName(), 
+        file(params.centrifuge_db).getParent() 
+      ] )
+      .set { ch_centrifuge_db }
+
+    CENTRIFUGE(ch_centrifuge_db, CAT_FASTQS.out)
+  }
+  
+  if (params.kraken2_db && params.centrifuge_db) {
+    // Join Kraken2 and Centrifuge classification results
+    ch_k2_cent_res = KRAKEN2.out.join(CENTRIFUGE.out, remainder: true)
+      .map { sample, reads, kraken2_results, kraken2_report, _r, centrifuge_results, centrifuge_kreport -> 
+        [
+          sample, 
+          reads, 
+          kraken2_results, 
+          kraken2_report, 
+          centrifuge_results, 
+          centrifuge_kreport
+        ]
+      }
+
+    FILTER_READS_BY_CLASSIFICATIONS(ch_k2_cent_res)
+    if (params.do_unicycler_assembly) {
+      UNICYCLER_ASSEMBLY(FILTER_READS_BY_CLASSIFICATIONS.out)
+    }
+  } else {
+    if (params.do_unicycler_assembly) {
+      log.error "UNICYCLER_ASSEMBLY not implemented for unfiltered reads!"
+      //UNICYCLER_ASSEMBLY()
+    }
+  }
+  
 }
 
 //=============================================================================

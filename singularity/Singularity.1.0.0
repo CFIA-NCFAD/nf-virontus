@@ -1,5 +1,5 @@
-Bootstrap:docker
-From:continuumio/miniconda3:4.8.2
+Bootstrap: docker
+From: continuumio/miniconda3:4.8.2
 
 %labels
     MAINTAINER Peter Kruczkiewicz
