@@ -55,6 +55,17 @@ def helpMessage() {
   ${c_bul}Amplicon Sequencing Options:${c_reset}
     --bedfile        BED format file with amplicon sequencing primers info (optional). 
                      Produced as output from PrimalScheme.
+  ${c_bul}Consensus Generation Options:${c_reset}
+    --low_coverage   Low coverage threshold (default=${params.low_coverage}).
+                     Replace consensus sequence positions below this depth
+                     threshold with a low coverage character 
+                     (see ${c_dim}--low_cov_char${c_reset})
+    --no_coverage    No coverage threshold (default=${params.no_coverage}).
+                     Replace consensus sequence positions with less than or 
+                     equal this depth with a no coverage character 
+                     (see ${c_dim}--no_cov_char${c_reset})
+    --low_cov_char   Low coverage character (default="${params.low_cov_char}")
+    --no_cov_char    No coverage character (default="${params.no_cov_char}")
 
   ${c_bul}Cluster Options:${c_reset}
     --slurm_queue     Name of SLURM queue to run workflow on; use with ${c_dim}-profile slurm${c_reset}
@@ -77,6 +88,9 @@ def helpMessage() {
                       (default: ${params.taxids}${is_viruses})
     --exclude_unclassified_reads  Exclude unclassified reads from taxonomic
                                   classification filtered reads (default: false)
+
+  ${c_bul}De Novo Assembly Options:${c_reset}
+    --do_unicycler_assembly       Assemble filtered reads using Unicycler? (default: ${params.do_unicycler_assembly})
 
   ${c_bul}Other Options:${c_reset}
     ${c_green}--outdir${c_reset}          The output directory where the results will be saved
@@ -194,16 +208,18 @@ summary['Pipeline Version'] = workflow.manifest.version
 summary['Run Name']     = custom_runName ?: workflow.runName
 // TODO nf-core: Report custom parameters here
 summary['Reads']        = params.reads
-summary['Reference Genomes FASTA'] = params.ref_fasta
+summary['Ref Sequences FASTA'] = params.ref_fasta
+if(params.bedfile) {
+  summary['Primer Scheme'] = params.bedfile
+}
+summary['Consensus No Coverage'] = "<=${params.no_coverage}X positions replaced with '${params.no_cov_char}'"
+summary['Consensus Low Coverage'] = "<${params.low_coverage}X positions replaced with '${params.low_cov_char}'"
 summary['Centrifuge DB'] = params.centrifuge_db
 summary['Kraken2 DB']   = params.kraken2_db
-summary['Taxids'] = taxids
-summary['Assembly with Unicycler'] = params.do_unicycler_assembly
+summary['Taxids'] = "Filtering for taxids belonging to $taxids"
+summary['Unicycler Assembly?'] = params.do_unicycler_assembly ? "Yes" : "No"
 if(params.do_unicycler_assembly) {
   summary['Unicycler Mode'] = params.unicycler_mode
-}
-if(params.do_flye_assembly) {
-  summary['Assembly with Flye'] = params.do_flye_assembly
 }
 summary['Max Memory']   = params.max_memory
 summary['Max CPUs']     = params.max_cpus
@@ -221,12 +237,7 @@ summary['Script dir']     = workflow.projectDir
 summary['Config Profile'] = workflow.profile
 summary['Command-Line']   = workflow.commandLine
 summary['Nextflow version'] = workflow.nextflow.version
-if(workflow.profile == 'awsbatch'){
-   summary['AWS Region'] = params.awsregion
-   summary['AWS Queue'] = params.awsqueue
-}
-if(params.email) summary['E-mail Address'] = params.email
-log.info summary.collect { k,v -> "${k.padRight(15)}: $v" }.join("\n")
+log.info summary.collect { k,v -> "${k.padRight(22)}: $v" }.join("\n")
 log.info "========================================="
 
 //=============================================================================
@@ -254,7 +265,7 @@ EOF
 }
 
 process MAP {
-  tag "$sample VS $ref_fasta"
+  tag "$sample VS $ref_name"
   publishDir "${params.outdir}/mapping/$sample/bamfiles", pattern: "*.bam"
 
   input:
@@ -306,7 +317,7 @@ process IVAR_TRIM {
 }
 
 process MAP_STATS {
-  tag "$sample VS segment $ref_name"
+  tag "$sample VS $ref_name"
   publishDir "${params.outdir}/mapping/$sample", mode: 'copy', pattern: "*.{tsv,flagstat,idxstats}"
 
   input:
@@ -335,7 +346,7 @@ process MAP_STATS {
 
 process MEDAKA {
   tag "$sample - $ref_name"
-  publishDir "${params.outdir}/medaka", mode: 'copy', pattern: '*.vcf'
+  publishDir "${params.outdir}/vcf", mode: 'copy', pattern: '*.vcf'
 
   input:
     tuple val(sample),
@@ -362,7 +373,7 @@ process MEDAKA {
 
 process LONGSHOT {
   tag "$sample - $ref_name"
-  publishDir "${params.outdir}/longshot", mode: 'copy', pattern: '*.vcf'
+  publishDir "${params.outdir}/vcf", mode: 'copy', pattern: '*.vcf'
 
   input:
     tuple val(sample),
@@ -392,12 +403,11 @@ process LONGSHOT {
 }
 
 
-// Filter for variants that meet the following criteria:
-// - Maximum fraction of reads supporting an indel is 0.5 or greater (IMF)
-// - Depth of coverage of ALT allele is greater than REF allele coverage
+// Filter for ALT allele variants that have greater depth than REF and
+// that have greater than 2X coverage 
 process BCF_FILTER {
   tag "$sample - $ref_name"
-  publishDir "${params.outdir}/medaka",
+  publishDir "${params.outdir}/vcf",
     pattern: "*.filt.vcf",
     mode: 'copy'
 
@@ -415,23 +425,19 @@ process BCF_FILTER {
           path(filt_vcf)
   script:
   ref_name = ref_fasta.getBaseName()
-  filt_vcf = "${sample}-${ref_name}.filt.vcf"
+  filt_vcf = "${file(vcf).getBaseName()}.filt.vcf"
   """
-  bcftools norm --threads ${task.cpus} \\
-    -f $ref_fasta \\
+  bcftools filter \\
+    -e 'AC[0] >= AC[1] || AC[1]<=2' \\
     $vcf \\
-    -Ob \\
-  | bcftools filter \\
-    -e 'IMF<0.5 || (DP4[0]+DP4[1])>(DP4[2]+DP4[3])' \\
-    - \\
-    -O \\
+    -Ov \\
     -o $filt_vcf
   """
 }
 
 process CONSENSUS {
   tag "$sample - $ref_name"
-  publishDir "${params.outdir}/bcftools/consensus", 
+  publishDir "${params.outdir}/consensus", 
     pattern: "*.consensus.fasta",
     mode: 'copy'
 
@@ -526,7 +532,7 @@ process CENTRIFUGE {
     -x ${db}/${db_name} \\
     -U $reads \\
     -S $results \\
-    --mm
+    -p ${task.cpus}
   centrifuge-kreport -x ${db}/${db_name} $results > $kreport
   """
 }
@@ -589,27 +595,6 @@ process UNICYCLER_ASSEMBLY {
   """
 }
 
-// TODO: try flye assembly with different genome sizes derived from classification results?
-process FLYE_ASSEMBLY {
-  tag "$sample"
-  publishDir "${params.outdir}/assemblies/flye/$sample", mode: 'copy'
-  errorStrategy 'ignore'
-
-  input:
-    tuple val(sample),
-          path(reads)
-  output:
-    path("out/")
-
-  script:
-  """
-  flye \\
-    --nano-raw $reads \\
-    --out-dir out \\
-    --genome-size $params.expected_genome_size
-  """
-}
-
 //=============================================================================
 // WORKFLOW
 //=============================================================================
@@ -624,11 +609,10 @@ workflow {
   // - Combine each ref seq with each sample's reads
   // - map reads against ref
   Channel.fromPath(params.reads)
-    .map {
-      [file(it).getBaseName(), it]
-    } \
-    | combine(REC2FASTA.out) \
-    | MAP 
+    .map { [file(it).getBaseName(), it] }
+    .set { ch_reads }
+
+  ch_reads | combine(REC2FASTA.out) | MAP 
 
   // Trim primer sequences from read alignments if primer scheme BED file provided 
   if (params.bedfile) {
@@ -650,6 +634,7 @@ workflow {
     } \
     | MEDAKA \
     | LONGSHOT \
+    | BCF_FILTER \
     | CONSENSUS
 
 
@@ -660,7 +645,7 @@ workflow {
       .set { ch_kraken2_db }
 
     // Metagenomic classification by Kraken2 and Centrifuge
-    KRAKEN2(ch_kraken2_db, CAT_FASTQS.out)  
+    KRAKEN2(ch_kraken2_db, ch_reads)  
   }
   
   if (params.centrifuge_db) {
@@ -672,7 +657,7 @@ workflow {
       ] )
       .set { ch_centrifuge_db }
 
-    CENTRIFUGE(ch_centrifuge_db, CAT_FASTQS.out)
+    CENTRIFUGE(ch_centrifuge_db, ch_reads)
   }
   
   if (params.kraken2_db && params.centrifuge_db) {
@@ -691,12 +676,11 @@ workflow {
 
     FILTER_READS_BY_CLASSIFICATIONS(ch_k2_cent_res)
     if (params.do_unicycler_assembly) {
-      UNICYCLER_ASSEMBLY(FILTER_READS_BY_CLASSIFICATIONS.out)
+      FILTER_READS_BY_CLASSIFICATIONS.out | UNICYCLER_ASSEMBLY
     }
   } else {
     if (params.do_unicycler_assembly) {
-      log.error "UNICYCLER_ASSEMBLY not implemented for unfiltered reads!"
-      //UNICYCLER_ASSEMBLY()
+      ch_reads | UNICYCLER_ASSEMBLY
     }
   }
   
