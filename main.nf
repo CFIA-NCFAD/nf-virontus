@@ -556,7 +556,7 @@ process FILTER_READS_BY_CLASSIFICATIONS {
           path(filtered_reads) optional true
 
   script:
-  exclude_reads_arg = exclude_unclassified_reads ? " --exclude-unclassified " : ""
+  exclude_reads_arg = params.exclude_unclassified_reads ? " --exclude-unclassified " : ""
   filtered_reads = "${sample}.filtered.fastq.gz"
   taxids_arg = taxids ? " --taxids $taxids" : ""
   """
