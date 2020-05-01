@@ -66,10 +66,6 @@ def helpMessage() {
                      (see ${c_dim}--no_cov_char${c_reset})
     --low_cov_char   Low coverage character (default="${params.low_cov_char}")
     --no_cov_char    No coverage character (default="${params.no_cov_char}")
-
-  ${c_bul}Cluster Options:${c_reset}
-    --slurm_queue     Name of SLURM queue to run workflow on; use with ${c_dim}-profile slurm${c_reset}
-
     
   ${c_bul}Taxonomic Classification Options:${c_reset}
     ${c_cyan}--centrifuge_db${c_reset}   Path to Centrifuge DB and prefix. If not specified, will 
@@ -91,6 +87,9 @@ def helpMessage() {
 
   ${c_bul}De Novo Assembly Options:${c_reset}
     --do_unicycler_assembly       Assemble filtered reads using Unicycler? (default: ${params.do_unicycler_assembly})
+
+  ${c_bul}Cluster Options:${c_reset}
+    --slurm_queue     Name of SLURM queue to run workflow on; use with ${c_dim}-profile slurm${c_reset}
 
   ${c_bul}Other Options:${c_reset}
     ${c_green}--outdir${c_reset}          The output directory where the results will be saved
@@ -217,6 +216,7 @@ summary['Consensus Low Coverage'] = "<${params.low_coverage}X positions replaced
 summary['Centrifuge DB'] = params.centrifuge_db
 summary['Kraken2 DB']   = params.kraken2_db
 summary['Taxids'] = "Filtering for taxids belonging to $taxids"
+summary['Filtered Reads'] = params.exclude_unclassified_reads ? "Excluding unclassified" : "Including unclassified"
 summary['Unicycler Assembly?'] = params.do_unicycler_assembly ? "Yes" : "No"
 if(params.do_unicycler_assembly) {
   summary['Unicycler Mode'] = params.unicycler_mode
@@ -538,9 +538,9 @@ process CENTRIFUGE {
 }
 
 process FILTER_READS_BY_CLASSIFICATIONS {
-  tag "$sample"
+  tag "$sample|taxids=$taxids"
   publishDir "${params.outdir}/filtered_reads/", 
-    pattern: "*.viral_unclassified.fastq", 
+    pattern: "*.filtered.fastq.gz",
     mode: 'copy'
   errorStrategy 'ignore'
 
@@ -556,10 +556,12 @@ process FILTER_READS_BY_CLASSIFICATIONS {
           path(filtered_reads) optional true
 
   script:
-  filtered_reads = "${sample}.viral_unclassified.fastq"
+  exclude_reads_arg = exclude_unclassified_reads ? " --exclude-unclassified " : ""
+  filtered_reads = "${sample}.filtered.fastq.gz"
   taxids_arg = taxids ? " --taxids $taxids" : ""
   """
   filter_classified_reads \\
+    $exclude_reads_arg \\
     ${taxids_arg} \\
     -i $reads \\
     -o $filtered_reads \\

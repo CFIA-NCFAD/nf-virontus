@@ -14,6 +14,7 @@ dependencies:
   - medaka=0.12.1
   - longshot
   - seqtk=1.3
+  - pbgzip
   - unicycler=0.4.7
   - python=3.6.7
   - pip=19.3.1
