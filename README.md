@@ -8,6 +8,21 @@
 [![Docker](https://img.shields.io/docker/automated/peterk87/nf-virontus.svg)](https://hub.docker.com/r/peterk87/nf-virontus)
 [![https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg](https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg)](https://singularity-hub.org/collections/4297)
 
+**Table of Contents**
+
+* [peterk87/nf-virontus](#peterk87nf-virontus)
+  * [Introduction](#introduction)
+  * [Installation](#installation)
+    * [1) Install <a href="https://www.nextflow.io" rel="nofollow">Nextflow</a>](#1-install-nextflow)
+    * [2) Install <a href="https://sylabs.io/guides/3.5/user-guide/" rel="nofollow">Singularity</a>](#2-install-singularity)
+    * [3) Install Virontus](#3-install-virontus)
+  * [Usage](#usage)
+    * [Preparing your data](#preparing-your-data)
+     * [Recommended Steps](#recommended-steps)
+    * [Example](#example)
+  * [Credits](#credits)
+
+> TOC created by [gh-md-toc](https://github.com/ekalinin/github-markdown-toc)
 
 ### Introduction
 
