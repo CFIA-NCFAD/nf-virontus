@@ -150,6 +150,41 @@ Singularity profile (`-profile singularity`) for maximum reproducibility and
 ease of execution on different platforms.
 ```
 
+#### Preparing your data
+
+It is assumed that your data has been basecalled using the latest version of ONT Guppy (`guppy_basecaller`/`guppy_basecall_server`) and barcode demultiplexed using `guppy_barcoder` with the appropriate settings for the kits used.
+
+After basecalling and demultiplexing, it is recommended that all reads belonging to a particular barcode be concatenated together and optionally renamed to represent the sample to which the reads belong. Virontus will extract the sample name for each input reads FASTQ file from the base filename of the FASTQ file (e.g. sample name will be `sample` from filename `sample1.fastq`).
+
+Below is an example `guppy_barcoder` command for more lenient barcode demultiplexing:
+
+```bash
+guppy_barcoder \
+  -q 0 \
+  --min_score 30 \
+  --detect_mid_strand_barcodes \
+  --allow_inferior_barcodes \
+  --trim_barcodes \
+  -i basecalled-reads/ \
+  -s demuxed-reads \
+  --arrangements_files barcode_arrs_nb12.cfg
+```
+
+- `-q 0` to output less files per barcode
+- `--min_score 30` for a lower barcode score threshold (default: 60)
+- `--detect_mid_strand_barcodes` to detect mid strand barcodes
+- `--trim_barcodes` to trim barcodes from read sequences
+- `--arrangements_files` to specify the barcodes used
+
+**NOTE:** It's recommended to use the default setting if possible to avoid misassigning reads into the incorrect barcodes.
+
+
+##### Recommended Steps
+
+1. Basecall reads using Guppy
+2. Demultiplex reads using `guppy_barcoder`
+3. Concatenate reads belonging to the same barcode into a single file (`cat barcode01/*.fastq > concat-reads/barcode01.fastq`)
+4. [Optionally] rename concatenated barcoded reads with appropriate sample name (`mv concat-reads/barcode01.fastq concat-reads/sample1.fastq`)
 
 #### Example
 
