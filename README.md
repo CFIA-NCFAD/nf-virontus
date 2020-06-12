@@ -78,7 +78,7 @@ N E X T F L O W  ~  version 20.01.0
 Launching `main.nf` [awesome_pauling] - revision: 9aeb19496b
 WARN: DSL 2 IS AN EXPERIMENTAL FEATURE UNDER DEVELOPMENT -- SYNTAX MAY CHANGE IN FUTURE RELEASE
 ==================================================================
-peterk87/nf-virontus   ~  version 1.0.0
+peterk87/nf-virontus   ~  version 1.1.0
 ==================================================================
 
   Git info: null - null [null]
@@ -222,10 +222,10 @@ N E X T F L O W  ~  version 20.01.0
 Launching `../main.nf` [ecstatic_davinci] - revision: 9aeb19496b
 WARN: DSL 2 IS AN EXPERIMENTAL FEATURE UNDER DEVELOPMENT -- SYNTAX MAY CHANGE IN FUTURE RELEASE
 =======================================================
-peterk87/nf-virontus v1.0.0
+peterk87/nf-virontus v1.1.0
 =======================================================
 Pipeline Name         : peterk87/nf-virontus
-Pipeline Version      : 1.0.0
+Pipeline Version      : 1.1.0
 Run Name              : ecstatic_davinci
 Reads                 : reads/*.fq
 Ref Sequences FASTA   : MN908947.3.fa
@@ -252,14 +252,15 @@ Command-Line          : nextflow run peterk87/nf-virontus -profile singularity -
 Nextflow version      : 20.01.0
 =========================================
 executor >  local (18)
-[0a/142458] process > REC2FASTA  [100%] 1 of 1, cached: 1 ✔
-[a3/3168c5] process > MAP        [100%] 3 of 3, cached: 3 ✔
+[0a/142458] process > REC2FASTA  [100%] 1 of 1 ✔
+[a3/3168c5] process > MAP        [100%] 3 of 3 ✔
 [0d/8a698f] process > IVAR_TRIM  [100%] 3 of 3 ✔
 [76/f82320] process > MAP_STATS  [100%] 3 of 3 ✔
 [cc/de6b36] process > MEDAKA     [100%] 3 of 3 ✔
 [74/058b57] process > LONGSHOT   [100%] 3 of 3 ✔
 [b4/5ed366] process > BCF_FILTER [100%] 3 of 3 ✔
-[a3/ae8e3a] process > CONSENSUS  [ 67%] 2 of 3
+[a3/ae8e3a] process > CONSENSUS  [ 100%] 3 of 3 ✔
+[e3/f75ddb] process > COVERAGE_PLOT [100%] 3 of 3 ✔
 
 Pipeline execution summary
 Completed at: 30-Apr-2020 14:00:11
@@ -305,6 +306,11 @@ results/
 │   ├── execution_report.html
 │   ├── execution_timeline.html
 │   └── execution_trace.txt
+├── plots
+│   ├── coverage_plot-NB02-VS-MN908947.3-log_scale.pdf
+│   ├── coverage_plot-NB02-VS-MN908947.3.pdf
+│   ├── coverage_plot-NB04-VS-MN908947.3-log_scale.pdf
+│   └── coverage_plot-NB04-VS-MN908947.3.pdf
 ├── refs
 │   └── MN908947.3.fa
 └── vcf
