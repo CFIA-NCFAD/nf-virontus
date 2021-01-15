@@ -1,1 +1,31 @@
-singularity/environment.1.1.0.yml
+name: nf-virontus-2.0.0
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - bcftools>=1.10
+  - ivar=1.3
+  - kraken2=2.1.1
+  - minimap2=2.17
+  - samtools>=1.10
+  - medaka=1.2.1
+  - longshot
+  - seqtk=1.3
+  - snpeff=5.0
+  - snpsift=4.3.1t
+  - pbgzip
+  - pigz
+  - python
+  - pip
+  - pip:
+    - attrs
+    - biopython
+    - click>=7.0
+    - jedi
+    - numpy
+    - pandas
+    - rich>=9.8.1
+    - seaborn
+    - typer>=0.3.2
+    - vcf_consensus_builder
