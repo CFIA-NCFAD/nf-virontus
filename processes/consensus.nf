@@ -10,7 +10,7 @@ process CONSENSUS {
         path(vcf),
         path(depths)
   output:
-  path(consensus)
+  tuple val(sample), path(consensus)
 
   script:
   ref_name = ref_fasta.getBaseName()

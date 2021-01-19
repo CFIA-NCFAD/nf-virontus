@@ -29,7 +29,8 @@ include {
   SOFTWARE_VERSIONS
 } from './processes/docs'
 include {
-  CHECK_SAMPLE_SHEET
+  CHECK_SAMPLE_SHEET;
+  CAT_FASTQ
 } from './processes/misc'
 include {
   MAP
@@ -42,7 +43,8 @@ include {
 } from './processes/ivar'
 include {
   MEDAKA_LONGSHOT;
-  VARIANT_FILTER;
+  VARIANT_FILTER as VARIANT_FILTER_MAJOR;
+  VARIANT_FILTER as VARIANT_FILTER_MINOR;
   BCFTOOLS_STATS as BCFTOOLS_STATS_PRE_FILTER;
   BCFTOOLS_STATS as BCFTOOLS_STATS_POST_FILTER
 } from './processes/variants'
@@ -60,13 +62,15 @@ include {
   MULTIQC
 } from './processes/multiqc'
 
+
 //=============================================================================
-// WORKFLOW
+// MAIN WORKFLOW
 //=============================================================================
 workflow {
-  // taxids = checkTaxids(params.taxids)
-  // if (params.centrifuge_db) checkCentrifugeDb(params.centrifuge_db)
-  // if (params.kraken2_db) checkKraken2Db(params.kraken2_db)
+  if (params.kraken2_db) {
+    taxids = checkTaxids(params.taxids)
+    checkKraken2Db(params.kraken2_db)
+  }
 
   // Has the run name been specified by the user?
   //  this has the bonus effect of catching both -name and --name
@@ -175,17 +179,29 @@ workflow {
     ch_reads = Channel.from([])
   }
   if (params.sample_sheet) {
-    // If sample sheet table provided
+    // If sample sheet table provided, 
+    //   - validate and write to CSV sample sheet
+    //   - use 'check_sample_sheet' method to fetch files for each sample 
+    //     (e.g. all FASTQ files within a Guppy barcoding output directory like 
+    //     'barcode01/')
+    //   - concatenate multiple FASTQs and gzip compress into single fastq.gz 
+    //     per sample
+    //   - add in reads specified by '--reads' CLI parameter
     Channel.from(file(params.sample_sheet, checkIfExists: true)) \
       | CHECK_SAMPLE_SHEET \
       | splitCsv(header: ['sample', 'reads'], sep: ',', skip: 1) \
-      | map { check_sample_sheet(it) } | mix(ch_reads) | set {ch_reads}
+      | map { check_sample_sheet(it) } \
+      | CAT_FASTQ \
+      | mix(ch_reads) \
+      | set {ch_reads}
   }
+  // reference fasta into channel
   ch_fasta = Channel.value(file(fasta))
+  // if reference GFF specified, create SnpEff DB
   if (gff) {
     MAKE_SNPEFF_DB(Channel.value([index_base, file(fasta), file(gff)]))
   }
-
+  // Map reads to reference
   ch_reads | combine(ch_fasta) | MAP
 
   // Trim primer sequences from read alignments if primer scheme BED file provided 
@@ -200,12 +216,42 @@ workflow {
   // only interested in sample name [0] and bam [2] for mosdepth
   ch_bam | map {[it[0], it[2]]} | MOSDEPTH_GENOME
   // variant calling and stats
-  ch_bam | MEDAKA_LONGSHOT | BCFTOOLS_STATS_PRE_FILTER
-  SNPEFF(MEDAKA_LONGSHOT.out, MAKE_SNPEFF_DB.out)
-  VARIANT_FILTER(MEDAKA_LONGSHOT.out, params.major_allele_fraction)
-  VARIANT_FILTER.out | BCFTOOLS_STATS_POST_FILTER
-  VARIANT_FILTER.out | join(ch_depths) | (CONSENSUS & COVERAGE_PLOT)
+  MEDAKA_LONGSHOT(ch_bam)
+  VARIANT_FILTER_MINOR(MEDAKA_LONGSHOT.out, params.minor_allele_fraction) \
+    | BCFTOOLS_STATS_PRE_FILTER
+  if (gff) {
+    SNPEFF(VARIANT_FILTER_MINOR.out, MAKE_SNPEFF_DB.out)
+  }
+  VARIANT_FILTER_MAJOR(MEDAKA_LONGSHOT.out, params.major_allele_fraction)
+  VARIANT_FILTER_MAJOR.out | BCFTOOLS_STATS_POST_FILTER
+  VARIANT_FILTER_MAJOR.out | join(ch_depths) | (CONSENSUS & COVERAGE_PLOT)
 
+  if (genome == 'MN908947.3') {
+    include { PANGOLIN; PANGOLIN_SUMMARY_FOR_MULTIQC } from './processes/pangolin'
+    CONSENSUS.out | PANGOLIN | PANGOLIN_SUMMARY_FOR_MULTIQC
+    ch_pangolin_mqc = PANGOLIN_SUMMARY_FOR_MULTIQC.out
+  } else {
+    ch_pangolin_mqc = Channel.from([])
+  }
+
+  if (params.tree) {
+    include { MAFFT_MSA } from './processes/msa'
+    include { IQTREE } from './processes/iqtree'
+    // TODO: only run tree when number of samples is at least 2; IQ-TREE will only run if at least 3 sequences are provided as input
+    ch_consensi = CONSENSUS.out | map { it[1] }
+    if (params.tree_extra_fasta) {
+      ch_extra_fasta = Channel.fromPath(params.tree_extra_fasta).splitFasta(file: true)
+      ch_fasta_for_mafft = ch_consensi | mix(ch_extra_fasta) | collect
+    } else {
+      ch_fasta_for_mafft = ch_consensi | collect
+    }
+     
+    // TODO: merge other sequences provided by user
+    MAFFT_MSA(ch_fasta_for_mafft, ch_fasta)
+    IQTREE(MAFFT_MSA.out, Channel.value(params.iqtree_model))
+    // TODO: shiptv
+    // TODO: merge optionally specified 
+  }
 
   // // Metagenomic classification by Kraken2
   // if (params.kraken2_db) {
@@ -233,7 +279,8 @@ workflow {
    ch_multiqc_config,
    MAP.out.stats.collect().ifEmpty([]),
    MOSDEPTH_GENOME.out.mqc.collect().ifEmpty([]),
-   BCFTOOLS_STATS_PRE_FILTER.out.collect().ifEmpty([]),
+   BCFTOOLS_STATS_POST_FILTER.out.collect().ifEmpty([]),
+   ch_pangolin_mqc,
    SOFTWARE_VERSIONS.out.software_versions_yaml.collect(),
    ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
   )

@@ -41,7 +41,7 @@ process MEDAKA_LONGSHOT {
 }
 
 process BCFTOOLS_STATS {
-  tag "$sample - $ref_name"
+  tag "$sample - ${file(vcf).getName()}"
   publishDir "${params.outdir}/variants/bcftools_stats", 
     mode: params.publish_dir_mode
   
@@ -60,7 +60,7 @@ process BCFTOOLS_STATS {
 }
 
 process VARIANT_FILTER {
-  tag "$sample - $ref_name"
+  tag "$sample - $ref_name - AF$allele_fraction"
 
   publishDir "${params.outdir}/variants",
     pattern: "*.filt.vcf",
@@ -78,7 +78,7 @@ process VARIANT_FILTER {
         path(filt_vcf)
   script:
   ref_name = ref_fasta.getBaseName()
-  filt_vcf = "${sample}.${allele_fraction}AF.vcf"
+  filt_vcf = "${sample}.${allele_fraction}AF.filt.vcf"
   """
   # split multiallelic calls into multiple rows
   bcftools norm \\

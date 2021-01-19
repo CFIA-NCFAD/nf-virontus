@@ -6,6 +6,7 @@ process MULTIQC {
   path('samtools/*')
   path('mosdepth/*')
   path('bcftools/*')
+  path('pangolin/*')
   path('software_versions/*')
   path(workflow_summary)
 

@@ -180,7 +180,6 @@ def check_sample_sheet(LinkedHashMap sample_sheet) {
   if (reads_file.isDirectory()) {
     fqs = []
     reads_file.eachFile {
-      println "$sample_sheet.sample $reads_file $it"
       fname = it.getName()
       if (fname ==~ /.*\.fastq(\.gz)?$/) {
         fqs << it
