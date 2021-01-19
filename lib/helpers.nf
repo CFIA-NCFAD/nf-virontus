@@ -169,3 +169,27 @@ def checkTaxids(taxids) {
     return taxids_list.join(',')
   }
 }
+
+def check_sample_sheet(LinkedHashMap sample_sheet) {
+  // Check that each entry from a sample sheet
+  reads_file = file(sample_sheet.reads, checkIfExists: true)
+  reads = sample_sheet.reads ? reads_file : null
+  if (reads == null) {
+    exit 1, "The Nanopore reads FASTQ file or directory specified for ${sample_sheet.sample} does not exist! Please check the sample sheet '$params.sample_sheet'"
+  }
+  if (reads_file.isDirectory()) {
+    fqs = []
+    reads_file.eachFile {
+      println "$sample_sheet.sample $reads_file $it"
+      fname = it.getName()
+      if (fname ==~ /.*\.fastq(\.gz)?$/) {
+        fqs << it
+      }
+    }
+    if (fqs.size() == 0) {
+      exit 1, "Sample '${sample_sheet.sample}' input specified as directory '$reads_file' with no FASTQ files! Please check the sample sheet '$params.sample_sheet'\n${fqs}\n${reads_file.listFiles()}"
+    }
+    reads = fqs
+  }
+  return [ sample_sheet.sample, reads ]
+}

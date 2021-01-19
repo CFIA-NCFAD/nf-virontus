@@ -14,7 +14,7 @@ process CONSENSUS {
 
   script:
   ref_name = ref_fasta.getBaseName()
-  consensus = "${sample}-${ref_name}.consensus.fasta"
+  consensus = "${sample}.consensus.fasta"
   """
   vcf_consensus_builder \\
     -v $vcf \\

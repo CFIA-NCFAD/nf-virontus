@@ -19,7 +19,7 @@ process IVAR_TRIM {
 
   script:
   ref_name = ref_fasta.getBaseName()
-  prefix = "${sample}-${ref_name}.trim"
+  prefix = "${sample}.trim"
   """
   ivar trim \\
     -i ${bam[0]} \\

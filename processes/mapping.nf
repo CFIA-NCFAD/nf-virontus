@@ -17,8 +17,7 @@ process MAP {
 
   script:
   ref_name = ref_fasta.getBaseName()
-  prefix = "${sample}-${ref_name}"
-  bam = "${prefix}.bam"
+  bam = "${sample}.bam"
   """
   minimap2 \\
     -ax map-ont \\
@@ -28,9 +27,9 @@ process MAP {
     | samtools sort -@${task.cpus} \\
     | samtools view -F4 -b -o $bam -
   samtools index $bam
-  samtools stats $bam > ${prefix}.stats
-  samtools flagstat $bam > ${prefix}.flagstat
-  samtools idxstats $bam > ${prefix}.idxstats
-  samtools depth -a -d 0 $bam | perl -ne 'chomp \$_; print "${sample}\t\$_\n"' > ${prefix}-depths.tsv
+  samtools stats $bam > ${sample}.stats
+  samtools flagstat $bam > ${sample}.flagstat
+  samtools idxstats $bam > ${sample}.idxstats
+  samtools depth -a -d 0 $bam | perl -ne 'chomp \$_; print "${sample}\t\$_\n"' > ${sample}-depths.tsv
   """
 }

@@ -16,7 +16,7 @@ process MEDAKA_LONGSHOT {
   
   script:
   ref_name = ref_fasta.getBaseName()
-  vcf = "${sample}-${ref_name}.longshot.vcf"
+  vcf = "${sample}.vcf"
   """
   samtools faidx $ref_fasta
   medaka consensus \\
@@ -78,7 +78,7 @@ process VARIANT_FILTER {
         path(filt_vcf)
   script:
   ref_name = ref_fasta.getBaseName()
-  filt_vcf = "${file(vcf).getBaseName()}.norm.${allele_fraction}AF.filt.vcf"
+  filt_vcf = "${sample}.${allele_fraction}AF.vcf"
   """
   # split multiallelic calls into multiple rows
   bcftools norm \\

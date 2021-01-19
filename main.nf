@@ -7,6 +7,7 @@ include {
   checkFileExists;
   checkKraken2Db;
   checkTaxids;
+  check_sample_sheet;
 } from './lib/helpers'
 
 // Show help message if --help specified
@@ -25,14 +26,25 @@ if (workflow.profile == 'slurm' && params.slurm_queue == "") {
 //=============================================================================
 
 include {
+  SOFTWARE_VERSIONS
+} from './processes/docs'
+include {
+  CHECK_SAMPLE_SHEET
+} from './processes/misc'
+include {
   MAP
 } from './processes/mapping'
+include {
+  MOSDEPTH_GENOME
+} from './processes/mosdepth'
 include {
   IVAR_TRIM
 } from './processes/ivar'
 include {
   MEDAKA_LONGSHOT;
-  VARIANT_FILTER
+  VARIANT_FILTER;
+  BCFTOOLS_STATS as BCFTOOLS_STATS_PRE_FILTER;
+  BCFTOOLS_STATS as BCFTOOLS_STATS_POST_FILTER
 } from './processes/variants'
 include {
   MAKE_SNPEFF_DB;
@@ -44,6 +56,9 @@ include {
 include {
   COVERAGE_PLOT
 } from './processes/plots'
+include {
+  MULTIQC
+} from './processes/multiqc'
 
 //=============================================================================
 // WORKFLOW
@@ -143,21 +158,29 @@ workflow {
   log.info summary.collect { k,v -> "${k.padRight(22)}: $v" }.join("\n")
   log.info "========================================="
 
-  // Map each sample's reads against each reference genome sequence
-  // - Combine each ref seq with each sample's reads
-  // - map reads against ref
-  ch_reads = Channel.fromPath(params.reads)
-    .map {
-      f = file(it)
-      filename = f.getName()
-      last_ext = filename.lastIndexOf(".")
-      index_base = filename.substring(0, last_ext)
-      if (filename.endsWith('.gz')) {
-        fastq_base = filename.substring(0, last_ext)
-        index_base = fastq_base.substring(0, fastq_base.lastIndexOf("."))
-      } 
-      [index_base, it] 
-    }
+  if (params.reads) {
+    ch_reads = Channel.fromPath(params.reads)
+      .map {
+        f = file(it)
+        filename = f.getName()
+        last_ext = filename.lastIndexOf(".")
+        index_base = filename.substring(0, last_ext)
+        if (filename.endsWith('.gz')) {
+          fastq_base = filename.substring(0, last_ext)
+          index_base = fastq_base.substring(0, fastq_base.lastIndexOf("."))
+        } 
+        [index_base, it]
+      }
+  } else {
+    ch_reads = Channel.from([])
+  }
+  if (params.sample_sheet) {
+    // If sample sheet table provided
+    Channel.from(file(params.sample_sheet, checkIfExists: true)) \
+      | CHECK_SAMPLE_SHEET \
+      | splitCsv(header: ['sample', 'reads'], sep: ',', skip: 1) \
+      | map { check_sample_sheet(it) } | mix(ch_reads) | set {ch_reads}
+  }
   ch_fasta = Channel.value(file(fasta))
   if (gff) {
     MAKE_SNPEFF_DB(Channel.value([index_base, file(fasta), file(gff)]))
@@ -174,18 +197,46 @@ workflow {
     ch_bam = MAP.out.bam
     ch_depths = MAP.out.depths
   }
-
-  ch_bam | MEDAKA_LONGSHOT
+  // only interested in sample name [0] and bam [2] for mosdepth
+  ch_bam | map {[it[0], it[2]]} | MOSDEPTH_GENOME
+  // variant calling and stats
+  ch_bam | MEDAKA_LONGSHOT | BCFTOOLS_STATS_PRE_FILTER
   SNPEFF(MEDAKA_LONGSHOT.out, MAKE_SNPEFF_DB.out)
   VARIANT_FILTER(MEDAKA_LONGSHOT.out, params.major_allele_fraction)
-
+  VARIANT_FILTER.out | BCFTOOLS_STATS_POST_FILTER
   VARIANT_FILTER.out | join(ch_depths) | (CONSENSUS & COVERAGE_PLOT)
+
 
   // // Metagenomic classification by Kraken2
   // if (params.kraken2_db) {
-  //   KRAKEN2(file(params.kraken2_db), ch_reads)  
+  //   KRAKEN2(file(params.kraken2_db), ch_reads)
   // }
-  
+
+  Channel.from(summary.collect{ [it.key, it.value] })
+    .map { k,v -> "<dt style=\"width:240px !important;\">$k</dt><dd style=\"margin-left:260px !important;\"><samp>${v != null ? v : '<span style=\"color:#999999;\">N/A</a>'}</samp></dd>" }
+    .reduce { a, b -> return [a, b].join("\n            ") }
+    .map { x -> """
+    id: 'peterk87-nf-virontus-summary'
+    description: " - this information is collected when the pipeline is started."
+    section_name: 'peterk87/nf-virontus Workflow Summary'
+    section_href: 'https://github.com/peterk87/nf-virontus'
+    plot_type: 'html'
+    data: |
+        <dl class=\"dl-horizontal\">
+            $x
+        </dl>
+    """.stripIndent() }
+    .set { ch_workflow_summary }
+  SOFTWARE_VERSIONS()
+  ch_multiqc_config = Channel.fromPath("$projectDir/assets/multiqc_config.yaml")
+  MULTIQC(
+   ch_multiqc_config,
+   MAP.out.stats.collect().ifEmpty([]),
+   MOSDEPTH_GENOME.out.mqc.collect().ifEmpty([]),
+   BCFTOOLS_STATS_PRE_FILTER.out.collect().ifEmpty([]),
+   SOFTWARE_VERSIONS.out.software_versions_yaml.collect(),
+   ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
+  )
 }
 
 //=============================================================================
