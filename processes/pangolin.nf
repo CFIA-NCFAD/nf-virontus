@@ -1,38 +1,56 @@
+process PREPARE_FASTA_FOR_PANGOLIN {
+  input:
+  tuple val(sample), path(fasta)
+
+  output:
+  path(output)
+
+  script:
+  output = "${sample}.fasta"
+  """
+  cat $fasta > $output
+  sed -i 's/^>.*/>${sample}/g' $output
+  """
+}
+
 process PANGOLIN {
-  tag "$sample"
-  // TODO: keep up-to-date with new releases of Pangolin
   container "covlineages/pangolin:v2.1.7"
 
   publishDir "${params.outdir}/pangolin",
              pattern: "*.csv",
              mode: params.publish_dir_mode
+
   publishDir "${params.outdir}/pangolin/logs",
              pattern: ".command.log",
-             saveAs: { "pangolin-${sample}.log" },
+             saveAs: { "pangolin.log" },
              mode: params.publish_dir_mode
 
   input:
-  tuple val(sample), path(fasta)
+  path(fasta)
 
   output:
-  tuple val(sample), path(output)
+  path(output)
 
   script:
-  output = "${sample}.pangolin.lineage_report.csv"
+  output = "pangolin.lineage_report.csv"
   """
-  cp $fasta tmp.fasta
-  sed -i 's/^>.*/>${sample}/g' tmp.fasta
+  # update pangolin lineages in case of updates
+  git clone --depth 1 https://github.com/cov-lineages/pangoLEARN.git
+  pip install --upgrade pangoLEARN/
+  git clone --depth 1 https://github.com/cov-lineages/lineages.git
+  pip install --upgrade lineages/
+
   pangolin \\
     --verbose \\
     -t ${task.cpus} \\
-    tmp.fasta \\
+    $fasta \\
     --outfile $output
   """
 }
 
 process PANGOLIN_SUMMARY_FOR_MULTIQC {
   input:
-  tuple val(value), path(input)
+  path(input)
 
   output:
   path("pangolin_mqc.txt")

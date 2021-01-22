@@ -16,12 +16,11 @@ and processes data using the following steps:
 * [Variant Filtering](#variant-filtering) - Variant filtering for major/minor variants is performed for SnpEff variant effect analysis, consensus sequence generation and high confidence variant statistics for MultiQC report.
 * [SnpEff](#snpeff) - SnpEff variant effect analysis on major and minor variants.
 * [Consensus Sequence](#consensus-sequence) - Consensus sequence with `N` masking of low/no coverage positions.
-* [Edlib Pairwise Alignment](#edlib-pairwise-alignment) - Pairwise global alignment and edit distance between reference and consensus sequences.
+* [Pangolin](#pangolin) - SARS-CoV-2 global lineage assignment using [Pangolin][] if using SARS-CoV-2 Wuhan-Hu-1 MN908947.3 as reference.
 * [Coverage Plots](#coverage-plots) - Coverage plots with/without low/no coverage and/or variants highlighted with linear and log10 scaling of y-axis depth values.
+* [Phylogenetic Tree](#phylogenetic-tree) - [IQ-TREE] maximum-likelihood phylogenetic tree from [MAFFT] multiple sequence alignment of sample consensus sequences and user provided sequences with reference sequence set as outgroup.
 * [MultiQC](#multiqc) - Aggregate report describing results from the whole pipeline
 * [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
-
-
 
 ## Concatenated FASTQ Reads
 
@@ -117,7 +116,7 @@ A consensus sequence is constructed from a coverage depth masked reference seque
 
 If the workflow is being run with the SARS-CoV-2 reference genome Wuhan-Hu-1 [MN908947.3](https://www.ncbi.nlm.nih.gov/nuccore/MN908947.3/), then [Pangolin][] is used to assign a global SARS-CoV-2 lineage to each sample.
 
-Pangolin results across multiple samples are aggregated into a table in the MultiQC report.
+The lastest release of Pangolin lineages will be installed prior to running Pangolin to ensure the most up-to-date lineage assignment.
 
 **Output files:**
 
@@ -141,6 +140,10 @@ Coverage plots (reference position vs coverage depth) are generated for each sam
   * `coverage_plot-*-log_scale.pdf`: coverage plot with log10 scaling of y-axis depth.
 
 > **NB:** If you're interested in the coverage plot with no annotations, look for the `${sample}-no_low_cov_highlighting.pdf` or `${sample}-no_low_cov_highlighting-log_scale.pdf` if you want log10 scaling of the depth values in the y-axis.
+
+## Phylogenetic Tree
+
+[IQ-TREE] maximum-likelihood phylogenetic tree from [MAFFT] multiple sequence alignment of sample consensus sequences and user provided sequences with reference sequence set as outgroup.
 
 ## MultiQC
 
@@ -171,13 +174,14 @@ For more information about how to use MultiQC reports, see [https://multiqc.info
   * Documentation for interpretation of results in HTML format: `results_description.html`.
 
 <!-- Refs go here -->
+[Bcftools]: https://samtools.github.io/bcftools/bcftools.html
+[Longshot]: https://github.com/pjedge/longshot
 [Medaka]: https://github.com/nanoporetech/medaka
 [Mosdepth]: https://github.com/brentp/mosdepth
-[Samtools]: https://www.htslib.org/
-[Bcftools]: https://samtools.github.io/bcftools/bcftools.html
-[vcf_consensus_builder]: https://github.com/peterk87/vcf_consensus_builder
-[pigz]: https://www.zlib.net/pigz/
 [MultiQC]: http://multiqc.info
-[Longshot]: https://github.com/pjedge/longshot
+[Pangolin]: https://github.com/cov-lineages/pangolin/
+[pigz]: https://www.zlib.net/pigz/
+[Samtools]: https://www.htslib.org/
 [SnpEff]: https://pcingola.github.io/SnpEff/
 [SnpSift]: https://pcingola.github.io/SnpEff/ss_introduction/
+[vcf_consensus_builder]: https://github.com/peterk87/vcf_consensus_builder

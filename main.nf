@@ -59,7 +59,8 @@ include {
   COVERAGE_PLOT
 } from './processes/plots'
 include {
-  MULTIQC
+  MULTIQC;
+  CONSENSUS_TO_MULTIQC_HTML
 } from './processes/multiqc'
 
 
@@ -221,22 +222,51 @@ workflow {
     | BCFTOOLS_STATS_PRE_FILTER
   if (gff) {
     SNPEFF(VARIANT_FILTER_MINOR.out, MAKE_SNPEFF_DB.out)
+    ch_snpeff = SNPEFF.out.csv | collect
+  } else {
+    ch_snpeff = Channel.from([])
   }
   VARIANT_FILTER_MAJOR(MEDAKA_LONGSHOT.out, params.major_allele_fraction)
   VARIANT_FILTER_MAJOR.out | BCFTOOLS_STATS_POST_FILTER
   VARIANT_FILTER_MAJOR.out | join(ch_depths) | (CONSENSUS & COVERAGE_PLOT)
 
+  CONSENSUS.out | map { it[1] } | collect | CONSENSUS_TO_MULTIQC_HTML
+
   if (genome == 'MN908947.3') {
-    include { PANGOLIN; PANGOLIN_SUMMARY_FOR_MULTIQC } from './processes/pangolin'
-    CONSENSUS.out | PANGOLIN | PANGOLIN_SUMMARY_FOR_MULTIQC
+    include {
+      PREPARE_FASTA_FOR_PANGOLIN;
+      PANGOLIN;
+      PANGOLIN_SUMMARY_FOR_MULTIQC
+    } from './processes/pangolin'
+    if (params.tree_extra_fasta) {
+      ch_extra_fasta_with_sample_name = Channel.fromPath(params.tree_extra_fasta).splitFasta(file: true) \
+        | map {
+          f = file(it)
+          m = f.text =~ /^>(\S+).*/
+          sample = m[0][1]
+          sample = sample.replaceAll(/[^\w\-]/, "_")
+          [sample, it]
+        }
+      ch_fasta_for_pangolin = CONSENSUS.out | mix(ch_extra_fasta_with_sample_name)
+    } else {
+      ch_fasta_for_pangolin = CONSENSUS.out
+    }
+    ch_fasta_for_pangolin \
+      | PREPARE_FASTA_FOR_PANGOLIN \
+      | collectFile(name: "sequences.fasta", newLine: true) \
+      | PANGOLIN \
+      | PANGOLIN_SUMMARY_FOR_MULTIQC
+    ch_pangolin = PANGOLIN.out
     ch_pangolin_mqc = PANGOLIN_SUMMARY_FOR_MULTIQC.out
   } else {
+    ch_pangolin = Channel.from([])
     ch_pangolin_mqc = Channel.from([])
   }
 
   if (params.tree) {
     include { MAFFT_MSA } from './processes/msa'
     include { IQTREE } from './processes/iqtree'
+    include { BASIC_TREE_PLOT } from './processes/plots'
     // TODO: only run tree when number of samples is at least 2; IQ-TREE will only run if at least 3 sequences are provided as input
     ch_consensi = CONSENSUS.out | map { it[1] }
     if (params.tree_extra_fasta) {
@@ -250,13 +280,17 @@ workflow {
     MAFFT_MSA(ch_fasta_for_mafft, ch_fasta)
     IQTREE(MAFFT_MSA.out, Channel.value(params.iqtree_model))
     // TODO: shiptv
-    // TODO: merge optionally specified 
+    // TODO: merge optionally specified
+    BASIC_TREE_PLOT(IQTREE.out, ch_pangolin)
+    ch_basic_tree_plot = BASIC_TREE_PLOT.out
+  } else {
+    ch_basic_tree_plot = Channel.from([])
   }
 
-  // // Metagenomic classification by Kraken2
-  // if (params.kraken2_db) {
-  //   KRAKEN2(file(params.kraken2_db), ch_reads)
-  // }
+  // Metagenomic classification by Kraken2
+  if (params.kraken2_db && !params.skip_kraken) {
+    KRAKEN2(file(params.kraken2_db), ch_reads)
+  }
 
   Channel.from(summary.collect{ [it.key, it.value] })
     .map { k,v -> "<dt style=\"width:240px !important;\">$k</dt><dd style=\"margin-left:260px !important;\"><samp>${v != null ? v : '<span style=\"color:#999999;\">N/A</a>'}</samp></dd>" }
@@ -280,7 +314,10 @@ workflow {
    MAP.out.stats.collect().ifEmpty([]),
    MOSDEPTH_GENOME.out.mqc.collect().ifEmpty([]),
    BCFTOOLS_STATS_POST_FILTER.out.collect().ifEmpty([]),
-   ch_pangolin_mqc,
+   ch_snpeff.ifEmpty([]),
+   CONSENSUS_TO_MULTIQC_HTML.out.collect().ifEmpty([]),
+   ch_pangolin_mqc.ifEmpty([]),
+   ch_basic_tree_plot.ifEmpty([]),
    SOFTWARE_VERSIONS.out.software_versions_yaml.collect(),
    ch_workflow_summary.collectFile(name: "workflow_summary_mqc.yaml")
   )

@@ -17,27 +17,35 @@ export_plots: true
 
 module_order:
     - samtools:
-        name: 'VARIANTS: Samtools (Minimap2)'
+        name: 'Samtools (Minimap2)'
         anchor: 'samtools_minimap2'
         info: 'This section of the report shows Samtools counts/statistics after mapping with Minimap2.'
         path_filters:
             - './samtools/*'
     - mosdepth:
-        name: 'VARIANTS Mosdepth (Minimap2)'
+        name: 'Mosdepth (Minimap2)'
         anchor: 'mosdepth_minimap2'
         info: 'This section of the report shows Mosdepth calculated depth statistics after mapping with Minimap2'
         path_filters:
             - './mosdepth/*'
     - bcftools:
-        name: 'VARIANTS Bcftools (Medaka)'
+        name: 'Bcftools Stats'
         anchor: 'bcftools_medaka'
         info: 'This section of the report shows Bcftools calculated statistics after variant calling with Medaka'
         path_filters:
             - './bcftools/*'
+    - snpeff:
+        name: 'SnpEff'
+        anchor: 'snpeff'
+        path_filters:
+            - './snpeff/*'
 
 extra_fn_clean_exts:
     - type: remove
       pattern: .norm.filt
+    - type: remove
+      pattern: .snpEff
+      module: snpeff
     - type: regex
       pattern: \.\d\.\d{2,}AF\.filt
 
@@ -49,32 +57,40 @@ mosdepth_config:
         - 30
         - 50
         - 100
+        - 1000
+        - 10000
     general_stats_coverage_hidden:
-        - 50
-        - 100
-
+        - 1
+        - 30
+        - 10000
 
 run_modules:
     - custom_content
     - samtools
     - mosdepth
     - bcftools
+    - snpeff
 
 sp:
     mosdepth/global_dist:
         fn: '*.global.dist.txt'
 
 table_columns_visible:
-    'VARIANTS: Samtools (Minimap2)':
+    'Samtools (Minimap2)':
         flagstat_total: false
         mapped_passed: false
         error_rate: false
         'non-primary_alignments': false
     'Bcftools Stats':
         number_of_MNPs: true
+    'SnpEff':
+        Change_rate: false
+        Ts_Tv_ratio: false
+        Number_of_variants_before_filter: false
+
 
 table_columns_placement:
-    'VARIANTS: Samtools (Minimap2)':
+    'Samtools (Minimap2)':
         reads_mapped: 1010
         raw_total_sequences: 1020
         reads_mapped_percent: 1030

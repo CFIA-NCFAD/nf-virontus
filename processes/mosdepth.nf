@@ -19,7 +19,6 @@ process MOSDEPTH_GENOME {
   script:
   """
   mosdepth \\
-      --by 200 \\
       --fast-mode \\
       $sample \\
       ${bam[0]}

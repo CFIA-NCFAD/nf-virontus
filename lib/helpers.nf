@@ -2,6 +2,7 @@
  * Helper functions for peterk87/nf-virontus
  */
 
+// TODO: update help
 def helpMessage() {
   // Log colors ANSI codes
   c_reset = params.monochrome_logs ? '' : "\033[0m";

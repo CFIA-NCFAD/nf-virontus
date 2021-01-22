@@ -11,6 +11,7 @@ process MAFFT_MSA {
 
   script:
   """
+  # ensure that ref fasta is first
   cat $ref_fasta > input.fasta
   # only keep seq id
   cat $fastas | sed -r 's/^>(\\S+)\\s.*/>\\1/g' >> input.fasta

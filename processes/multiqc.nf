@@ -6,7 +6,10 @@ process MULTIQC {
   path('samtools/*')
   path('mosdepth/*')
   path('bcftools/*')
+  path('snpeff/*')
+  path('consensus/*')
   path('pangolin/*')
+  path('tree/*')
   path('software_versions/*')
   path(workflow_summary)
 
@@ -26,5 +29,23 @@ process MULTIQC {
   // TODO nf-core: Specify which MultiQC modules to use with -m for a faster run time
   """
   multiqc -f $rtitle $rfilename $custom_config_file .
+  """
+}
+
+process CONSENSUS_TO_MULTIQC_HTML {
+  input:
+  path(fastas)
+
+  output:
+  path('consensus_mqc.html')
+
+  script:
+  """
+  mqc_embed_file_html.py \\
+    --id consensus \\
+    --name 'Consensus sequence FASTA files' \\
+    --desc 'This section contains the consensus sequences FASTA files for each sample.' \\
+    consensus_mqc.html \\
+    $fastas
   """
 }

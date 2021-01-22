@@ -25,7 +25,7 @@ process MAP {
     $ref_fasta \\
     $fastq \\
     | samtools sort -@${task.cpus} \\
-    | samtools view -F4 -b -o $bam -
+    > $bam
   samtools index $bam
   samtools stats $bam > ${sample}.stats
   samtools flagstat $bam > ${sample}.flagstat

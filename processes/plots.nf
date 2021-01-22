@@ -21,3 +21,19 @@ process COVERAGE_PLOT {
   plot_coverage.py -d $depths -v $filt_vcf -o $log_scale_plot_filename --log-scale-y
   """
 }
+
+process BASIC_TREE_PLOT {
+  input:
+  path(iqtree_output)
+  path(pangolin_report)
+
+  output:
+  path(output)
+
+  script:
+  output = 'IQ-TREE_Maximum-Likelihood_Phylogenetic_Tree_mqc.png'
+  pangolin_report_arg = pangolin_report ? "--pangolin-report $pangolin_report" : ""
+  """
+  plot_basic_tree.py tree-*.treefile $output $pangolin_report_arg
+  """
+}
