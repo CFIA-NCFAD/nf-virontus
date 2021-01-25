@@ -49,7 +49,7 @@ When a user supplies a sample sheet CSV and read data paths point to directories
 * `samtools/depth/`
   * `*-depths.tsv`: Tab-delimited table of read mapping coverage depth at each position in the reference containing 3 columns: reference genome ID, position and coverage depth.
 
-> **NB:** Stats and metrics computed by Samtools are used to generate multiple fields in the MultiQC general statistics table and to generate multiple plots under the section "VARIANTS: Samtools (Minimap2)"
+> **NB:** Stats and metrics computed by Samtools are used to generate multiple fields in the MultiQC general statistics table and to generate multiple plots in the MultiQC report.
 
 ## Mosdepth
 
@@ -71,22 +71,13 @@ When a user supplies a sample sheet CSV and read data paths point to directories
 
 **Output files:**
 
-* `tvc/`
-  * `${sample}/`
-    * `tvc-outdir`: TVC output directory
-      * `*-small_variants.vcf`: SNPs, MNPs and small indels detected by TVC in TMAP read alignment.
-      * `*-small_variants_filtered.vcf`: Small variants that were filtered out (TVC help unclear what this file is supposed to contain).
-      * `depth.txt`: Read alignment depth at reference sequence positions as determined by TVC.
-      * `tvc_metrics.json`: JSON file with basic transition/transversion (Ts/Tv) stats.
-      * `indel_assembly.vcf`: *De novo* assembly of large indels detected by TVC with SPAdes. This VCF file should typically contain no variants.
-      * `black_listed.vcf`: Variants detected that are "black listed" (i.e. variants that one wishes to ignore). This file should be empty in most cases.
-    * `*-tvc-postprocessed.bam`: Post-processed TVC output BAM file for debugging purposes.
-    * `*-tvc-postprocessed.bam`: Post-processed TVC output BAM index file.
-    * `*-mash_screen-top_ref.fasta`: Top reference genome sequence FASTA selected by Mash screen.
+* `variants/`
+  * `${sample}.vcf`: Unfiltered VCF output from Medaka and Longshot.
+  * `*.{fa,fasta}`: Reference genome FASTA
 
 ## Variant Filtering
 
-Variants detected by [Medaka] are normalized and filtered by [Bcftools][] by allele fraction for the subset that qualify as minor or major variants. Bcftools is also used to report the number of SNPs, MNPs and indels detected as well as transitions/transversions (Ts/Tv). Bcftools statistics are reported in the MultiQC report general stats table.
+Variants detected by [Medaka] are normalized and filtered with [Bcftools][] by allele fraction for the subset that qualify as minor or major variants (default: 0.25 and 0.75 allele fraction). Bcftools is also used to report the number of SNPs, MNPs and indels detected as well as transitions/transversions (Ts/Tv). Bcftools statistics are reported in the MultiQC report general stats table.
 
 By default, the minimum allele fraction (AF) or frequency an alternate allele must be observed is 0.25, otherwise the allele is discarded from downstream analysis.
 
@@ -99,9 +90,8 @@ Indel variants that potentially introduce frameshift mutations are also filtered
 * `variants/`
   * `bcftools/`
     * `*.bcftools_stats.txt`: Variant statistics file used by MultiQC for reporting and visualization.
-  * `vcf/`
-    * `*.norm.vcf`: Bcftools normalized VCF (multiallelic sites are split into individual records for easier filtering).
-    * `*.norm.filt.vcf`: Variants filtered for majority allele using Bcftools. These are the variants used for generating the majority consensus sequence.
+  * `${sample}.${minor_allele_fraction}AF.filt.vcf`: Filtered VCF with only variants passing `--minor_allele_fraction` threshold (default: 0.25)
+  * `${sample}.${major_allele_fraction}AF.filt.vcf`: Filtered VCF with only variants passing `--major_allele_fraction` threshold (default: 0.75)
 
 ## Consensus Sequence
 
@@ -116,7 +106,7 @@ A consensus sequence is constructed from a coverage depth masked reference seque
 
 If the workflow is being run with the SARS-CoV-2 reference genome Wuhan-Hu-1 [MN908947.3](https://www.ncbi.nlm.nih.gov/nuccore/MN908947.3/), then [Pangolin][] is used to assign a global SARS-CoV-2 lineage to each sample.
 
-The lastest release of Pangolin lineages will be installed prior to running Pangolin to ensure the most up-to-date lineage assignment.
+The lastest release of Pangolin lineages ([PangoLEARN](https://github.com/cov-lineages/pangoLEARN/) and [lineages](https://github.com/cov-lineages/lineages)) is downloaded and installed prior to running Pangolin to ensure the most up-to-date lineage assignment.
 
 **Output files:**
 
@@ -125,7 +115,7 @@ The lastest release of Pangolin lineages will be installed prior to running Pang
   * `logs/`
     * `*.log`: Pangolin logs
 
-> **NB:** In order to run Pangolin with this workflow, you must run the workflow with the `docker` or `singularity` profile (i.e. `nextflow run peterk87/nf-virontus -profile docker/singularity ...`)
+> **NB:** In order to run Pangolin with this workflow, you must run the workflow with the `docker` or `singularity` profile (i.e. `nextflow run peterk87/nf-virontus -profile docker/singularity ...`) and you must run the workflow in online mode.
 
 ## Coverage Plots
 
@@ -144,6 +134,10 @@ Coverage plots (reference position vs coverage depth) are generated for each sam
 ## Phylogenetic Tree
 
 [IQ-TREE] maximum-likelihood phylogenetic tree from [MAFFT] multiple sequence alignment of sample consensus sequences and user provided sequences with reference sequence set as outgroup.
+
+A basic phylogenetic tree visualization is generated with [BioPython Phylo](https://biopython.org/wiki/Phylo) and included in the MultiQC report.
+
+A [shiptv](https://github.com/peterk87/shiptv) interactive standalone HTML [Phylocanvas](http://phylocanvas.org/)-based phylogenetic tree visualization can also be generated as part of the workflow. User specified sequences and metadata for those sequences can be visualized in the shiptv tree.
 
 ## MultiQC
 
@@ -175,13 +169,18 @@ For more information about how to use MultiQC reports, see [https://multiqc.info
 
 <!-- Refs go here -->
 [Bcftools]: https://samtools.github.io/bcftools/bcftools.html
+[IQ-TREE]: http://www.iqtree.org/
 [Longshot]: https://github.com/pjedge/longshot
+[MAFFT]: https://mafft.cbrc.jp/alignment/software/
+[Matplotlib]: https://matplotlib.org/
 [Medaka]: https://github.com/nanoporetech/medaka
+[Minimap2]: https://github.com/lh3/minimap2
 [Mosdepth]: https://github.com/brentp/mosdepth
 [MultiQC]: http://multiqc.info
 [Pangolin]: https://github.com/cov-lineages/pangolin/
 [pigz]: https://www.zlib.net/pigz/
 [Samtools]: https://www.htslib.org/
+[seaborn]: https://seaborn.pydata.org/
 [SnpEff]: https://pcingola.github.io/SnpEff/
 [SnpSift]: https://pcingola.github.io/SnpEff/ss_introduction/
 [vcf_consensus_builder]: https://github.com/peterk87/vcf_consensus_builder

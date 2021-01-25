@@ -275,14 +275,12 @@ workflow {
     } else {
       ch_fasta_for_mafft = ch_consensi | collect
     }
-     
-    // TODO: merge other sequences provided by user
     MAFFT_MSA(ch_fasta_for_mafft, ch_fasta)
     IQTREE(MAFFT_MSA.out, Channel.value(params.iqtree_model))
-    // TODO: shiptv
-    // TODO: merge optionally specified
     BASIC_TREE_PLOT(IQTREE.out, ch_pangolin)
     ch_basic_tree_plot = BASIC_TREE_PLOT.out
+    // TODO: shiptv
+    // TODO: merge optionally specified metadata
   } else {
     ch_basic_tree_plot = Channel.from([])
   }

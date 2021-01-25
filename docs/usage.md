@@ -1,17 +1,23 @@
-# peterk87/nf-ionampliseq: Usage
+# peterk87/nf-virontus: Usage
 
 ## Introduction
 
-This pipeline performs read mapping and variant calling with Thermo Fisher developed open-source tools, [TMAP] and [TVC] to produce more accurate read mapping and variant calling results from Ion Torrent AmpliSeq sequence data. The pipeline also generates a consensus sequence and comprehensive QC stats and results report using MultiQC.
+This pipeline performs read mapping and variant calling with [Minimap2] and [Medaka] with [Longshot] variant annotation. A consensus sequence is generated from major variants and variants that would not cause potential frameshift mutations. 
 
-This workflow currently includes several built-in analysis packages for Ion Torrent AmpliSeq sequence data of [CSFV] and [FMDV]. Users can also specify their own AmpliSeq panels, however, these files (reference sequences FASTA and detailed BED file) must be compatible with the Ion Torrent Software Suite including [tmap] and [tvc].
+Optionally, amplicon primers can be trimmed with [iVar] if a BED file of primer coordinates is supplied.
+
+If read mapping against the SARS-CoV-2 reference genome Wuhan-Hu-1 ([MN908947.3](https://www.ncbi.nlm.nih.gov/nuccore/MN908947.3/)) is being performed, then [Pangolin] global SARS-CoV-2 lineage assignment will be performed.
 
 ## Running the pipeline
 
-The typical command for running the pipeline is as follows:
+A typical command for running the pipeline with the reference genome SARS-CoV-2 MN908947.3 sequenced by the [ARTIC V3 protocol](https://github.com/artic-network/artic-ncov2019/tree/master/primer_schemes/nCoV-2019/V3) and samples and their reads specified in a sample sheet is as follows:
 
 ```bash
-nextflow run peterk87/nf-ionampliseq --input '/path/to/ion-torrent/*.bam' -profile docker
+nextflow run peterk87/nf-virontus \
+  -profile docker \
+  --sample_sheet my-sample-sheet.csv \
+  --genome MN908947.3 \
+  --artic_v3
 ```
 
 This will launch the pipeline with the `docker` configuration profile. See below for more information about profiles.
@@ -30,74 +36,65 @@ results         # Finished results (configurable, see below)
 The help and usage information for this pipeline can be displayed in your terminal with:
 
 ```bash
-nextflow run peterk87/nf-ionampliseq --help
+nextflow run peterk87/nf-virontus --help
 ```
 
 Which should show a help and usage message like this:
 
+<!-- TODO: update and add recent help info -->
 ```text
-==================================================================
-peterk87/nf-ionampliseq   ~  version 1.0.0dev
-==================================================================
 
-  Git info: XXX - YYY [ZZZ]
-
-Usage:
-
-The typical command for running the pipeline is as follows:
-
-$ nextflow run peterk87/nf-ionampliseq \
-    --input '/path/to/iontorrent/*.bam' \
-    --outdir ./results \
-    -profile docker # Recommended to run workflow with either Docker or Singularity enabled
-
-Input Options:
-  --input           Path to BAM files (e.g. 'ion-torrent/*.bam'). Sample names and AmpliSeq panel will be inferred from the BAM file headers. [Recommended run mode]
-  --rundir          Path to Ion Torrent sequencing run containing 'IonCode_*_rawlib.bam' and 'ion_params_00.json' output files.
-  --sample_sheet    Sample sheet CSV, TSV, ODS or XLSX file.
-  --panel           AmpliSeq panel to run. Choice of 'fmd' or 'csf'. Only needs to be specified with '--sample_sheet'.
-  --ref_fasta       Custom AmpliSeq panel reference sequences FASTA.
-  --bed_file        Custom AmpliSeq detailed BED file accompanying '--ref_fasta'.
-
-Mash Screen Options:
-  --mash_k          Mash sketch kmer size (default: 19)
-  --mash_s          Mash sketch number of sketch hashes (default: 10000)
-
-TVC Options:
-  --tvc_error_motifs_dir        Directory with Ion Torrent TVC error motifs (default: /home/pkruczkiewicz/sandbox/2020-09-21-fmdv-ion-torrent-weird-gap/ionampliseq/data/tvc-sse)
-  --tvc_read_limit              TVC read limit (default: 4000000)
-  --tvc_downsample_to_coverage  TVC downsample to at most X coverage (default: X=8000)
-  --tvc_min_mapping_qv          TVC min mapping quality value (default: 0)
-  --tvc_read_snp_limit          TVC: do not use reads with number of SNPs about this (default: 20)
-
-Cluster Options:
-  --slurm_queue       Name of SLURM queue to run workflow on. Must be specified with -profile slurm.
-  --slurm_queue_size  Maximum number of Slurm jobs to queue (default: 100)
-
-Other Options:
-  --outdir          The output directory where the results will be saved
-                    (default: ./results)
-  -w/--work-dir     The temporary directory where intermediate data will be
-                    saved (default: /home/pkruczkiewicz/sandbox/2020-09-21-fmdv-ion-torrent-weird-gap/ionampliseq/test/derp/work)
-  -profile          Configuration profile to use. [standard, singularity,
-                    conda, slurm] (default 'standard')
-  --tracedir        Pipeline run info output directory (default:
-                    ./results/pipeline_info)
 ```
+
+### Main Options
+
+#### `--sample_sheet`
+
+Specify a sample sheet in the form of a table with 2 columns for sample name and Nanopore reads path. The reads path can be a directory containing barcode demultiplexed reads generated by [Guppy](https://nanoporetech.com/nanopore-sequencing-data-analysis). If multiple reads (`*.fastq` or `*.fastq.gz`) files are detected within a specified read directory, they are concatenated into a single Gzip compressed read file with the filename set as the user-specified that can be saved to the results output directory if `--save_cat_reads` is specified when running the workflow.
+
+The format of the sample sheet file can be comma-separated values (CSV), tab-separated values (TSV), OpenDocument Spreadsheet Document (ODS) or Excel Spreadsheet (XLSX). For ODS and XLSX files, the first spreadsheet must contain the table starting at row 1 and column 1. Column headers are expected, but ignored. 
+
+> **NB:** It is **highly** recommended that the file paths to FASTQ files or directories containing FASTQ files be specified as absolute file paths (full file paths) rather than relative file paths. You can get the absolute file path for a file or directory using the [realpath](https://linux.die.net/man/3/realpath) Linux command-line utility (e.g. `realpath reads/*.fastq > fastq-filepaths.txt`). 
+
+#### `--reads`
+
+Although it is recommended that a sample sheet is specified when running this workflow, you can also specify reads with `--reads '/path/to/reads/*.fastq'`. However, reads for the same sample will not be concatenated and sample names will be derived from the input reads FASTQ filenames.
+
+> **NB:** Whenever possible, this workflow should be run with sample sheet as input.
+
+#### `--genome`
+
+#### `--fasta`
+
+#### `--gff`
+
+#### `--bed`
+
+### SARS-CoV-2 analysis parameters
+
+Several convenience parameters are defined to help make it easier to analyze SARS-CoV-2 sequence data with this workflow.
+
+#### `--scov2`
+
+Convenience parameter to set the reference genome to SARS-CoV-2 Wuhan-Hu-1 MN908947.3. Equivalent to `--genome MN908947.3`.
+
+#### `--artic_v3`
+
+#### `--freed`
 
 ### Updating the pipeline
 
 When you run the above command, Nextflow automatically pulls the pipeline code from GitHub and stores it as a cached version. When running the pipeline after this, it will always use the cached version if available - even if the pipeline has been updated since. To make sure that you're running the latest version of the pipeline, make sure that you regularly update the cached version of the pipeline:
 
 ```bash
-nextflow pull peterk87/nf-ionampliseq
+nextflow pull peterk87/nf-virontus
 ```
 
 ### Reproducibility
 
 It's a good idea to specify a pipeline version when running the pipeline on your data. This ensures that a specific version of the pipeline code and software are used when you run your pipeline. If you keep using the same tag, you'll be running the same version of the pipeline, even if there have been changes to the code since.
 
-First, go to the [peterk87/nf-ionampliseq releases page](https://github.com/peterk87/nf-ionampliseq/releases) and find the latest version number - numeric only (eg. `1.3.1`). Then specify this when running the pipeline with `-r` (one hyphen) - eg. `-r 1.3.1`.
+First, go to the [peterk87/nf-virontus releases page](https://github.com/peterk87/nf-virontus/releases) and find the latest version number - numeric only (eg. `2.0.0`). Then specify this when running the pipeline with `-r` (one hyphen) - eg. `-r 2.0.0`.
 
 This version number will be logged in reports when you run the pipeline, so that you'll know what you used when you look back in the future.
 
@@ -111,9 +108,10 @@ Use this parameter to choose a configuration profile. Profiles can give configur
 
 Several generic profiles are bundled with the pipeline which instruct the pipeline to use software packaged using different methods (Docker, Singularity, Conda) - see below.
 
-> We highly recommend the use of Docker or Singularity containers for full pipeline reproducibility, however when this is not possible, Conda is also supported.
+> We highly recommend the use of Docker or Singularity containers for full pipeline reproducibility, however when this is not possible, Conda is also supported. When performing SARS-CoV-2 analysis with this workflow, the use of Docker or Singularity containers is required to run the latest version of [Pangolin]. 
 
-The pipeline also dynamically loads configurations from [https://github.com/nf-core/configs](https://github.com/nf-core/configs) when it runs, making multiple config profiles for various institutional clusters available at run time. For more information and to see if your system is available in these configs please see the [nf-core/configs documentation](https://github.com/nf-core/configs#documentation).
+<!-- TODO: dynamically load configs for this pipeline? 
+The pipeline also dynamically loads configurations from [https://github.com/nf-core/configs](https://github.com/nf-core/configs) when it runs, making multiple config profiles for various institutional clusters available at run time. For more information and to see if your system is available in these configs please see the [nf-core/configs documentation](https://github.com/nf-core/configs#documentation). -->
 
 Note that multiple profiles can be loaded, for example: `-profile test,docker` - the order of arguments is important!
 They are loaded in sequence, so later profiles can overwrite earlier profiles.
@@ -122,10 +120,10 @@ If `-profile` is not specified, the pipeline will run locally and expect all sof
 
 * `docker`
   * A generic configuration profile to be used with [Docker](https://docker.com/)
-  * Pulls software from Docker Hub: [`peterk87/nf-ionampliseq`](https://hub.docker.com/r/peterk87/nf-ionampliseq/)
+  * Pulls software from Docker Hub: [`peterk87/nf-virontus`](https://hub.docker.com/r/peterk87/nf-virontus/)
 * `singularity`
   * A generic configuration profile to be used with [Singularity](https://sylabs.io/docs/)
-  * Pulls software from Docker Hub: [`peterk87/nf-ionampliseq`](https://hub.docker.com/r/peterk87/nf-ionampliseq/)
+  * Pulls software from Docker Hub: [`peterk87/nf-virontus`](https://hub.docker.com/r/peterk87/nf-virontus/)
 * `conda`
   * Please only use Conda as a last resort i.e. when it's not possible to run the pipeline with Docker or Singularity.
   * A generic configuration profile to be used with [Conda](https://conda.io/docs/)
@@ -148,12 +146,13 @@ Specify the path to a specific config file (this is a core Nextflow command). Se
 
 Each step in the pipeline has a default set of requirements for number of CPUs, memory and time. For most of the steps in the pipeline, if the job exits with an error code of `143` (exceeded requested resources) it will automatically resubmit with higher requests (2 x original, then 3 x original). If it still fails after three times then the pipeline is stopped.
 
-Whilst these default requirements will hopefully work for most people with most data, you may find that you want to customise the compute resources that the pipeline requests. You can do this by creating a custom config file. For example, to give the workflow process `TVC` 32GB of memory, you could use the following config:
+Whilst these default requirements will hopefully work for most people with most data, you may find that you want to customise the compute resources that the pipeline requests. You can do this by creating a custom config file. For example, to give the workflow process `MEDAKA_LONGSHOT` 16GB of memory and 16 CPUs, you could use the following config:
 
 ```nextflow
 process {
-  withName: TVC {
-    memory = 32.GB
+  withName: MEDAKA_LONGSHOT {
+    cpus = 16
+    memory = 16.GB
   }
 }
 ```
@@ -184,3 +183,28 @@ We recommend adding the following line to your environment to limit this (typica
 ```bash
 NXF_OPTS='-Xms1g -Xmx4g'
 ```
+
+
+[Bcftools]: https://samtools.github.io/bcftools/bcftools.html
+[Centrifuge]: https://ccb.jhu.edu/software/centrifuge/manual.shtml
+[Conda]: https://conda.io/
+[Docker]: https://www.docker.com/
+[IQ-TREE]: http://www.iqtree.org/
+[iVar]: https://github.com/andersen-lab/ivar
+[Kraken2]: https://ccb.jhu.edu/software/kraken2/
+[Longshot]: https://www.nature.com/articles/s41467-019-12493-y
+[MAFFT]: https://mafft.cbrc.jp/alignment/software/
+[Matplotlib]: https://matplotlib.org/
+[Medaka]: https://github.com/nanoporetech/medaka
+[Minimap2]: https://github.com/lh3/minimap2
+[Mosdepth]: https://github.com/brentp/mosdepth
+[MultiQC]: http://multiqc.info
+[Nextflow]: https://www.nextflow.io
+[Pangolin]: https://github.com/cov-lineages/pangolin/
+[pigz]: https://www.zlib.net/pigz/
+[Samtools]: https://www.htslib.org/
+[seaborn]: https://seaborn.pydata.org/
+[Singularity]: https://sylabs.io/guides/3.5/user-guide/
+[SnpEff]: https://pcingola.github.io/SnpEff/
+[SnpSift]: https://pcingola.github.io/SnpEff/ss_introduction/
+[vcf_consensus_builder]: https://github.com/peterk87/vcf_consensus_builder

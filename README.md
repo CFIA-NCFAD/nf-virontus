@@ -1,12 +1,11 @@
 # peterk87/nf-virontus
 **Virontus viral Oxford Nanopore sequence analysis pipeline**
 
-[![Build Status](https://travis-ci.org/peterk87/nf-virontus.svg?branch=master)](https://travis-ci.org/peterk87/nf-virontus)
-[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A519.10.0-brightgreen.svg)](https://www.nextflow.io/)
-
+[![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A520.04.0-brightgreen.svg)](https://www.nextflow.io/)
+<!-- TODO: add badge for github actions -->
 [![install with bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg)](http://bioconda.github.io/)
+
 [![Docker](https://img.shields.io/docker/automated/peterk87/nf-virontus.svg)](https://hub.docker.com/r/peterk87/nf-virontus)
-[![https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg](https://www.singularity-hub.org/static/img/hosted-singularity--hub-%23e32929.svg)](https://singularity-hub.org/collections/4297)
 
 **Table of Contents**
 
@@ -334,15 +333,27 @@ Thank you to the [nf-core/tools](https://github.com/nf-core/tools) team for a gr
 
 
 
-
-[Minimap2]: https://github.com/lh3/minimap2
-[Medaka]: https://github.com/nanoporetech/medaka
-[Longshot]: https://www.nature.com/articles/s41467-019-12493-y
-[Nextflow]: https://www.nextflow.io
-[Singularity]: https://sylabs.io/guides/3.5/user-guide/
+[Bcftools]: https://samtools.github.io/bcftools/bcftools.html
+[Centrifuge]: https://ccb.jhu.edu/software/centrifuge/manual.shtml
 [Conda]: https://conda.io/
+[Docker]: https://www.docker.com/
+[IQ-TREE]: http://www.iqtree.org/
 [iVar]: https://github.com/andersen-lab/ivar
 [Kraken2]: https://ccb.jhu.edu/software/kraken2/
-[Centrifuge]: https://ccb.jhu.edu/software/centrifuge/manual.shtml
+[Longshot]: https://www.nature.com/articles/s41467-019-12493-y
+[MAFFT]: https://mafft.cbrc.jp/alignment/software/
+[Matplotlib]: https://matplotlib.org/
+[Medaka]: https://github.com/nanoporetech/medaka
+[Minimap2]: https://github.com/lh3/minimap2
+[Mosdepth]: https://github.com/brentp/mosdepth
+[MultiQC]: http://multiqc.info
+[Nextflow]: https://www.nextflow.io
+[Pangolin]: https://github.com/cov-lineages/pangolin/
+[pigz]: https://www.zlib.net/pigz/
+[Samtools]: https://www.htslib.org/
+[seaborn]: https://seaborn.pydata.org/
+[Singularity]: https://sylabs.io/guides/3.5/user-guide/
+[SnpEff]: https://pcingola.github.io/SnpEff/
+[SnpSift]: https://pcingola.github.io/SnpEff/ss_introduction/
 [Unicycler]: https://github.com/rrwick/Unicycler
-[Docker]: https://www.docker.com/
+[vcf_consensus_builder]: https://github.com/peterk87/vcf_consensus_builder
