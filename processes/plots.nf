@@ -1,12 +1,11 @@
 process COVERAGE_PLOT {
-  publishDir "${params.outdir}/plots", 
-    pattern: '*.pdf',
-    mode: 'copy'
+  publishDir "${params.outdir}/plots/coverage",
+    mode: params.publish_dir_mode
 
   input:
   tuple val(sample),
         path(ref_fasta),
-        path(filt_vcf),
+        path(vcf),
         path(depths)
   
   output:
@@ -14,11 +13,49 @@ process COVERAGE_PLOT {
 
   script:
   ref_name = ref_fasta.getBaseName()
-  plot_filename = "coverage_plot-${sample}-VS-${ref_name}.pdf"
-  log_scale_plot_filename = "coverage_plot-${sample}-VS-${ref_name}-log_scale.pdf"
+  prefix = "${sample}.${ref_name}.coverage"
   """
-  plot_coverage.py -d $depths -v $filt_vcf -o $plot_filename
-  plot_coverage.py -d $depths -v $filt_vcf -o $log_scale_plot_filename --log-scale-y
+  # coverage plot with variants
+  plot_coverage.py \\
+    -d $depths \\
+    -v $vcf \\
+    --sample-name $sample \\
+    --no-highlight \\
+    -o ${prefix}.variants.pdf
+
+  plot_coverage.py \\
+    -d $depths \\
+    -v $vcf \\
+    --sample-name $sample \\
+    --log-scale-y \\
+    --no-highlight \\
+    -o ${prefix}.variants.log-scale-y.pdf
+
+  # coverage plot highlighting low/no coverage regions
+  plot_coverage.py \\
+    -d $depths \\
+    --sample-name $sample \\
+    --log-scale-y \\
+    -o ${prefix}.log-scale-y.highlight-no-low-cov.pdf
+
+  plot_coverage.py \\
+    -d $depths \\
+    --sample-name $sample \\
+    -o ${prefix}.highlight-no-low-cov.pdf
+
+  # coverage plot no highlighting
+  plot_coverage.py \\
+    -d $depths \\
+    --sample-name $sample \\
+    --log-scale-y \\
+    --no-highlight \\
+    -o ${prefix}.log-scale-y.pdf
+
+  plot_coverage.py \\
+    -d $depths \\
+    --sample-name $sample \\
+    --no-highlight \\
+    -o ${prefix}.pdf
   """
 }
 

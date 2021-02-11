@@ -26,34 +26,58 @@ def parse_vcf(vcf_path) -> pd.DataFrame:
 
 def read_depths(fpath) -> pd.DataFrame:
     df = pd.read_table(fpath,
-                       names=['genome', 'reference', 'pos', 'depth'],
+                       names=['reference', 'pos', 'depth'],
                        header=None)
     return df
 
 
-def depth_plot(ax, df, low=3):
+def get_interval_coords(df, threshold=0):
+    pos = df[df.depth <= threshold].pos
+    coords = []
+    for i, x in enumerate(pos):
+        if coords:
+            last = coords[-1][-1]
+            if x == last + 1:
+                coords[-1].append(x)
+            else:
+                coords.append([x])
+        else:
+            coords.append([x])
+    return'; '.join([f'{xs[0]}-{xs[-1]}' for xs in coords])
+
+
+def depth_plot(ax,
+               df,
+               low=3,
+               sample_name='SAMPLE',
+               highlight_low_cov=True,
+               highlight_no_cov=True) -> str:
     plt.sca(ax)
-    genome = df.genome.values[0]
+    genome = sample_name
     reference = df.reference.values[0]
     dflow = df.copy()
-    low_depth = (dflow.depth <= low)
+    low_depth = (dflow.depth < low)
     dflow.loc[low_depth, 'depth'] = df.depth.max()
     df0 = df.copy()
     zero_depth = (df0.depth == 0)
     df0.loc[zero_depth, 'depth'] = df.depth.max()
-    ax.set_title(
-        f'Sample "{genome}" mapped to reference "{reference}"\n'
-        f'Mean coverage: {df.depth.mean():.1f}X\n'
-        f'Low coverage positions (<={low}X): {low_depth.sum():.0f}\n'
-        f'Zero coverage positions (0X): {zero_depth.sum():.0f}'
-    )
+    ax.set_title(f'Sample "{genome}" mapped to reference "{reference}"\n')
     ax.set_ylabel('Depth')
     ax.set_xlabel('Position')
     ax.set_ylim(top=df.depth.max())
     ax.set_xlim(left=1, right=df.pos.max())
     ax.fill_between('pos', 'depth', 0, data=df, color='darkgrey')
-    ax.fill_between('pos', 'depth', df.depth, where=dflow.depth > df.depth, color='yellow', data=dflow)
-    ax.fill_between('pos', 'depth', df.depth, where=df0.depth > df.depth, color='red', data=df0)
+    if highlight_low_cov:
+        ax.fill_between('pos', 'depth', df.depth, where=dflow.depth > df.depth, color='yellow', data=dflow)
+    if highlight_no_cov:
+        ax.fill_between('pos', 'depth', df.depth, where=df0.depth > df.depth, color='red', data=df0)
+    
+    return (f'Mean (median) coverage: {df.depth.mean():.1f}X ({df.depth.median():.1f}X)\n'
+        f'Genome coverage (>= {low}X): {(df.depth >= low).sum() / df.shape[0]:.1%}\n'
+        f'Low coverage positions (<{low}X): {low_depth.sum():.0f}\n'
+        f'No coverage positions (0X): {zero_depth.sum():.0f}\n'
+        f'Low coverage regions (<{low}X): {get_interval_coords(df, low-1)}\n'
+        f'No coverage regions (0X): {get_interval_coords(df, 0)}\n')
 
 
 @click.command()
@@ -62,17 +86,20 @@ def depth_plot(ax, df, low=3):
 @click.option('-v', '--vcf-file', type=click.Path(exists=True))
 @click.option('-l', '--low-coverage', default=3, type=int)
 @click.option('--log-scale-y', is_flag=True)
-@click.option('-w', '--width', default=12, type=int)
-@click.option('-h', '--height', default=10, type=int)
+@click.option('-w', '--width', default=10, type=int)
+@click.option('-h', '--height', default=5, type=int)
+@click.option('--sample-name', default='SAMPLE', type=str)
+@click.option('--no-highlight', is_flag=True)
 def main(depths_file, 
          output_pdf,
          vcf_file,
          low_coverage,
          log_scale_y,
          width,
-         height):
-    
-    mplstyle.use(['seaborn',])
+         height,
+         sample_name,
+         no_highlight):
+    highlight_low_no_cov_regions = not no_highlight
     df = read_depths(depths_file)
     df_vcf = None
     if vcf_file:
@@ -85,7 +112,15 @@ def main(depths_file,
         formatter = ScalarFormatter()
         formatter.set_scientific(False)
         ax.yaxis.set_major_formatter(formatter)
-    depth_plot(ax, df, low=low_coverage)
+    bottom_desc = depth_plot(ax,
+                             df,
+                             low=low_coverage,
+                             sample_name=sample_name,
+                             highlight_low_cov=highlight_low_no_cov_regions,
+                             highlight_no_cov=highlight_low_no_cov_regions)
+    # add coverage stats description below plot
+    fig.text(0.1, -0.15, bottom_desc, fontsize='small')
+    print(bottom_desc)
     if df_vcf is not None:
         df = df.set_index('pos')
         for idx, row in df_vcf.iterrows():
