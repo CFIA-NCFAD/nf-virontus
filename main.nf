@@ -3,23 +3,96 @@
 nextflow.enable.dsl = 2
 
 include {
-  helpMessage;
   checkFileExists;
   checkKraken2Db;
   checkTaxids;
   check_sample_sheet;
 } from './lib/helpers'
 
+def json_schema = "$projectDir/nextflow_schema.json"
 // Show help message if --help specified
 if (params.help){
-  helpMessage()
+  def command = "nextflow run peterk87/nf-virontus --input samplesheet.csv --genome 'MN908947.3' --artic_v3 -profile docker"
+  log.info Schema.params_help(workflow, params, json_schema, command)
   exit 0
 }
+
+
+
+//=============================================================================
+// CHECK PARAMS
+//=============================================================================
 
 if (workflow.profile == 'slurm' && params.slurm_queue == "") {
   log.error "You must specify a valid SLURM queue (e.g. '--slurm_queue <queue name>' (see `\$ sinfo` output for available queues)) to run this workflow with the 'slurm' profile!"
   exit 1
 }
+
+if (params.kraken2_db) {
+  taxids = checkTaxids(params.taxids)
+  checkKraken2Db(params.kraken2_db)
+}
+
+// Has the run name been specified by the user?
+//  this has the bonus effect of catching both -name and --name
+custom_runName = params.name
+if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
+  custom_runName = workflow.runName
+}
+
+// courtesy of nf-core/viralrecon (https://github.com/nf-core/viralrecon)
+genome = params.genome
+fasta = params.fasta
+gff = params.gff
+primer_bed = params.primer_bed
+// Viral reference files
+if (params.scov2) {
+  genome = 'MN908947.3'
+  fasta = params.genomes[genome].fasta
+  gff = params.genomes[genome].gff
+}
+if (params.genomes && genome && !params.genomes.containsKey(genome)) {
+  exit 1, "The provided genome '${genome}' is not available in the Genome file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
+}
+if (!fasta || fasta == null) {
+  fasta = genome ? params.genomes[genome].fasta : false
+}
+if (!gff || gff == null) { 
+  gff = genome ? params.genomes[genome].gff : false
+}
+if (fasta) {
+  file(fasta, checkIfExists: true)
+
+  lastPath = fasta.lastIndexOf(File.separator)
+  lastExt = fasta.lastIndexOf(".")
+  fasta_base = fasta.substring(lastPath+1)
+  index_base = fasta.substring(lastPath+1,lastExt)
+  if (fasta.endsWith('.gz')) {
+      fasta_base = fasta.substring(lastPath+1,lastExt)
+      index_base = fasta_base.substring(0,fasta_base.lastIndexOf("."))
+  }
+} else {
+  exit 1, "Viral genome fasta file not specified!"
+}
+
+if (genome == 'MN908947.3' && !primer_bed) {
+  if (params.artic_v3) {
+    primer_bed = params.genomes[genome]['primer_schemes']['artic_v3']
+  } else if (params.freed) {
+    primer_bed = params.genomes[genome]['primer_schemes']['freed']
+  } else {
+    log.warn "Using SARS-CoV-2 ${genome} as reference genome with no primer BED file. Primers will not be trimmed since they are not specified. You can specify a custom primer scheme in BED file format or use one of the built-in primer schemes: ${params.genomes[genome]['schemes'].keySet().join(', ')}"
+  }
+}
+
+
+//=============================================================================
+// LOG PARAMS SUMMARY
+//=============================================================================
+
+def summary_params = Schema.params_summary_map(workflow, params, json_schema)
+log.info Schema.params_summary_log(workflow, params, json_schema)
+
 
 //=============================================================================
 // PROCESSES
@@ -68,134 +141,22 @@ include {
 // MAIN WORKFLOW
 //=============================================================================
 workflow {
-  if (params.kraken2_db) {
-    taxids = checkTaxids(params.taxids)
-    checkKraken2Db(params.kraken2_db)
-  }
 
-  // Has the run name been specified by the user?
-  //  this has the bonus effect of catching both -name and --name
-  custom_runName = params.name
-  if( !(workflow.runName ==~ /[a-z]+_[a-z]+/) ){
-    custom_runName = workflow.runName
-  }
+  // If sample sheet table provided, 
+  //   - validate and write to CSV sample sheet
+  //   - use 'check_sample_sheet' method to fetch files for each sample 
+  //     (e.g. all FASTQ files within a Guppy barcoding output directory like 
+  //     'barcode01/')
+  //   - concatenate multiple FASTQs and gzip compress into single fastq.gz 
+  //     per sample
+  //   - add in reads specified by '--reads' CLI parameter
+  Channel.from(file(params.input, checkIfExists: true)) \
+    | CHECK_SAMPLE_SHEET \
+    | splitCsv(header: ['sample', 'reads'], sep: ',', skip: 1) \
+    | map { check_sample_sheet(it) } \
+    | CAT_FASTQ \
+    | set {ch_reads}
 
-  // courtesy of nf-core/viralrecon (https://github.com/nf-core/viralrecon)
-  genome = params.genome
-  fasta = params.fasta
-  gff = params.gff
-  bed = params.bed
-  // Viral reference files
-  if (params.scov2) {
-    genome = 'MN908947.3'
-    fasta = params.genomes[genome].fasta
-    gff = params.genomes[genome].gff
-  }
-  if (params.genomes && genome && !params.genomes.containsKey(genome)) {
-    exit 1, "The provided genome '${genome}' is not available in the Genome file. Currently the available genomes are ${params.genomes.keySet().join(", ")}"
-  }
-  if (!fasta || fasta == null) {
-    fasta = genome ? params.genomes[genome].fasta : false
-  }
-  if (!gff || gff == null) { 
-    gff = genome ? params.genomes[genome].gff : false
-  }
-  if (fasta) {
-    file(fasta, checkIfExists: true)
-
-    lastPath = fasta.lastIndexOf(File.separator)
-    lastExt = fasta.lastIndexOf(".")
-    fasta_base = fasta.substring(lastPath+1)
-    index_base = fasta.substring(lastPath+1,lastExt)
-    if (fasta.endsWith('.gz')) {
-        fasta_base = fasta.substring(lastPath+1,lastExt)
-        index_base = fasta_base.substring(0,fasta_base.lastIndexOf("."))
-    }
-  } else {
-    exit 1, "Viral genome fasta file not specified!"
-  }
-
-  if (genome == 'MN908947.3' && !bed) {
-    if (params.articv3) {
-      bed = params.genomes[genome]['schemes']['ARTIC_V3']
-    } else if (params.freed) {
-      bed = params.genomes[genome]['schemes']['Freed']
-    } else {
-      log.warn "Using SARS-CoV-2 ${genome} as reference genome with no primer BED file. Primers will not be trimmed since they are not specified. You can specify a custom primer scheme in BED file format or use one of the built-in primer schemes: ${params.genomes[genome]['schemes'].keySet().join(', ')}"
-    }
-  }
-
-  //=============================================================================
-  // LOG EXECUTION START PARAMS
-  //=============================================================================
-
-  def summary = [:]
-  summary['Pipeline Name']       = workflow.manifest.name
-  summary['Pipeline Version']    = workflow.manifest.version
-  if (workflow.revision) summary['Pipeline Release'] = workflow.revision
-  summary['Run Name']            = custom_runName ?: workflow.runName
-  summary['Reads']               = params.reads
-  if (genome) summary['Ref Genome'] = genome
-  summary['Ref Genome FASTA'] = fasta
-  if (gff) summary['Ref Genome GFF'] = gff
-  if (bed) summary['Primer Scheme'] = bed
-  summary['Major Allele Fraction'] = params.major_allele_fraction
-  summary['Minor Allele Fraction'] = params.minor_allele_fraction
-  summary['Consensus No Coverage'] = "<=${params.no_coverage}X positions replaced with '${params.no_cov_char}'"
-  summary['Consensus Low Coverage'] = "<${params.low_coverage}X positions replaced with '${params.low_cov_char}'"
-  if (params.kraken2_db) summary['Kraken2 DB'] = params.kraken2_db
-  summary['Max Memory']       = params.max_memory
-  summary['Max CPUs']         = params.max_cpus
-  summary['Max Time']         = params.max_time
-  summary['Current home']     = "$HOME"
-  summary['Current user']     = "$USER"
-  summary['Current path']     = "$PWD"
-  summary['Working dir']      = workflow.workDir
-  summary['Output dir']       = params.outdir
-  summary['Script dir']       = workflow.projectDir
-  summary['Config Profile']   = workflow.profile
-  summary['Command-Line']     = workflow.commandLine
-  summary['Nextflow version'] = workflow.nextflow.version
-  if (workflow.containerEngine) summary['Container'] = "$workflow.containerEngine - $workflow.container"
-  log.info """=======================================================
-    ${workflow.manifest.name} v${workflow.manifest.version}
-    =======================================================""".stripIndent()
-  log.info summary.collect { k,v -> "${k.padRight(22)}: $v" }.join("\n")
-  log.info "========================================="
-
-  if (params.reads) {
-    ch_reads = Channel.fromPath(params.reads)
-      .map {
-        f = file(it)
-        filename = f.getName()
-        last_ext = filename.lastIndexOf(".")
-        index_base = filename.substring(0, last_ext)
-        if (filename.endsWith('.gz')) {
-          fastq_base = filename.substring(0, last_ext)
-          index_base = fastq_base.substring(0, fastq_base.lastIndexOf("."))
-        } 
-        [index_base, it]
-      }
-  } else {
-    ch_reads = Channel.from([])
-  }
-  if (params.sample_sheet) {
-    // If sample sheet table provided, 
-    //   - validate and write to CSV sample sheet
-    //   - use 'check_sample_sheet' method to fetch files for each sample 
-    //     (e.g. all FASTQ files within a Guppy barcoding output directory like 
-    //     'barcode01/')
-    //   - concatenate multiple FASTQs and gzip compress into single fastq.gz 
-    //     per sample
-    //   - add in reads specified by '--reads' CLI parameter
-    Channel.from(file(params.sample_sheet, checkIfExists: true)) \
-      | CHECK_SAMPLE_SHEET \
-      | splitCsv(header: ['sample', 'reads'], sep: ',', skip: 1) \
-      | map { check_sample_sheet(it) } \
-      | CAT_FASTQ \
-      | mix(ch_reads) \
-      | set {ch_reads}
-  }
   // reference fasta into channel
   ch_fasta = Channel.value(file(fasta))
   // if reference GFF specified, create SnpEff DB
@@ -206,8 +167,8 @@ workflow {
   ch_reads | combine(ch_fasta) | MAP
 
   // Trim primer sequences from read alignments if primer scheme BED file provided 
-  if (bed) {
-    IVAR_TRIM(Channel.value(file(bed)), MAP.out.bam)
+  if (primer_bed) {
+    IVAR_TRIM(Channel.value(file(primer_bed)), MAP.out.bam)
     ch_bam = IVAR_TRIM.out.bam
     ch_depths = IVAR_TRIM.out.depths
   } else {
@@ -228,7 +189,10 @@ workflow {
   }
   VARIANT_FILTER_MAJOR(MEDAKA_LONGSHOT.out, params.major_allele_fraction)
   VARIANT_FILTER_MAJOR.out | BCFTOOLS_STATS_POST_FILTER
-  VARIANT_FILTER_MAJOR.out | join(ch_depths) | (CONSENSUS & COVERAGE_PLOT)
+  VARIANT_FILTER_MAJOR.out | join(ch_depths) | COVERAGE_PLOT
+
+  ch_consensus_input = VARIANT_FILTER_MAJOR.out | join(MOSDEPTH_GENOME.out.bedgz)
+  CONSENSUS(ch_consensus_input, params.low_coverage)
 
   CONSENSUS.out | map { it[1] } | collect | CONSENSUS_TO_MULTIQC_HTML
 
@@ -290,21 +254,8 @@ workflow {
     KRAKEN2(file(params.kraken2_db), ch_reads)
   }
 
-  Channel.from(summary.collect{ [it.key, it.value] })
-    .map { k,v -> "<dt style=\"width:240px !important;\">$k</dt><dd style=\"margin-left:260px !important;\"><samp>${v != null ? v : '<span style=\"color:#999999;\">N/A</a>'}</samp></dd>" }
-    .reduce { a, b -> return [a, b].join("\n            ") }
-    .map { x -> """
-    id: 'peterk87-nf-virontus-summary'
-    description: " - this information is collected when the pipeline is started."
-    section_name: 'peterk87/nf-virontus Workflow Summary'
-    section_href: 'https://github.com/peterk87/nf-virontus'
-    plot_type: 'html'
-    data: |
-        <dl class=\"dl-horizontal\">
-            $x
-        </dl>
-    """.stripIndent() }
-    .set { ch_workflow_summary }
+  workflow_summary    = Schema.params_summary_multiqc(workflow, summary_params)
+  ch_workflow_summary = Channel.value(workflow_summary)
   SOFTWARE_VERSIONS()
   ch_multiqc_config = Channel.fromPath("$projectDir/assets/multiqc_config.yaml")
   MULTIQC(

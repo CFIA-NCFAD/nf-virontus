@@ -1,30 +1,28 @@
 process CONSENSUS {
-  tag "$sample - $ref_name"
-  publishDir "${params.outdir}/consensus", 
-    pattern: "*.consensus.fasta",
+  tag "$sample"
+  publishDir "${params.outdir}/consensus",
     mode: params.publish_dir_mode
 
   input:
   tuple val(sample),
         path(ref_fasta),
         path(vcf),
-        path(depths)
+        path(mosdepth_per_base)
+  val(low_coverage)
+
   output:
   tuple val(sample), path(consensus)
 
   script:
-  ref_name = ref_fasta.getBaseName()
   consensus = "${sample}.consensus.fasta"
   """
-  vcf_consensus_builder \\
-    -v $vcf \\
-    -d $depths \\
-    -r $ref_fasta \\
-    -o $consensus \\
-    --low-coverage $params.low_coverage \\
-    --no-coverage $params.no_coverage \\
-    --low-cov-char $params.low_cov_char \\
-    --no-cov-char $params.no_cov_char \\
-    --sample-name $sample
+  bgzip -c $vcf > ${vcf}.gz
+  tabix ${vcf}.gz
+  zcat $mosdepth_per_base | awk '\$4<${low_coverage}' > low_cov.bed
+  bcftools consensus \\
+    -f $ref_fasta \\
+    -m low_cov.bed \\
+    ${vcf}.gz > $consensus
+  sed -i -E "s/^>(.*)/>$sample/g" $consensus
   """
 }

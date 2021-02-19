@@ -13,6 +13,7 @@ process MOSDEPTH_GENOME {
   tuple val(sample), path(bam)
 
   output:
+  tuple val(sample), path("*.per-base.bed.gz"), emit: bedgz
   path "*.global.dist.txt", emit: mqc
   path "*.{txt,gz,csi,tsv}"
 

@@ -34,5 +34,4 @@ dependencies:
     - rich>=9.8.1
     - seaborn
     - typer>=0.3.2
-    - vcf_consensus_builder
     - xlrd

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import re
 import sys
 import logging
 from io import TextIOWrapper
@@ -8,10 +9,59 @@ from os import PathLike
 from pathlib import Path
 from typing import TextIO, Union, Tuple
 
-import pandas as pd
 import typer
+import pandas as pd
 from rich.console import Console
 from rich.logging import RichHandler
+
+
+aa_codes = dict(
+    ALA='A',
+    ARG='R',
+    ASN='N',
+    ASP='D',
+    CYS='C',
+    GLU='E',
+    GLN='Q',
+    GLY='G',
+    HIS='H',
+    ILE='I',
+    LEU='L',
+    LYS='K',
+    MET='M',
+    PHE='F',
+    PRO='P',
+    SER='S',
+    THR='T',
+    TRP='W',
+    TYR='Y',
+    VAL='V',
+)
+
+
+def parse_aa(gene: str,
+             ref: str,
+             alt: str,
+             nt_pos: int,
+             aa_pos: int,
+             snpeff_aa: str) -> str:
+    m = re.match(r'p\.([a-zA-Z]+)(\d+)([a-zA-Z]+)', snpeff_aa)
+    if snpeff_aa == '.' or m is None:
+        return f'{ref}{nt_pos}{alt}'
+    
+    ref_aa, aa_pos_str, alt_aa = m.groups()
+    ref_aa = get_aa(ref_aa)
+    alt_aa = get_aa(alt_aa)
+    return f'{ref}{nt_pos}{alt}({gene}:{ref_aa}{aa_pos}{alt_aa})'
+
+
+def get_aa(s: str) -> str:
+    out = ''
+    for i in range(0, len(s), 3):
+        aa = s[i: i + 3]
+        aa_code = aa_codes[aa.upper()]
+        out += aa_code
+    return out
 
 
 def main(snpsift_input: Path = typer.Argument(None, help='SnpSift tab-delimited table of variant effects'), 
@@ -37,6 +87,16 @@ def main(snpsift_input: Path = typer.Argument(None, help='SnpSift tab-delimited 
         else:
             series.append(df[c])
     df_out = pd.concat(series, axis=1)
+    mutation_desc = []
+    for i, row in df_out.iterrows():
+        mutation_desc.append(parse_aa(gene=row['gene'],
+                                      ref=row['REF'],
+                                      alt=row['ALT'],
+                                      nt_pos=row['POS'],
+                                      aa_pos=row['aa_pos'],
+                                      snpeff_aa=row['aa']))
+    df_out['mutation'] = mutation_desc
+
     df_out.to_csv(output, sep='\t', index=False)
 
 

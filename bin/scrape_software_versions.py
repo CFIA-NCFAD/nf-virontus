@@ -4,7 +4,7 @@ import re
 
 
 regexes = {
-    "peterk87/nf-ionampliseq": ["v_pipeline.txt", r"(\S+)"],
+    "peterk87/nf-virontus": ["v_pipeline.txt", r"(\S+)"],
     "Nextflow": ["v_nextflow.txt", r"(\S+)"],
     "MultiQC": ["v_multiqc.txt", r"multiqc, version (\S+)"],
     "Minimap2": ["v_minimap2.txt", r"(\S+)"],

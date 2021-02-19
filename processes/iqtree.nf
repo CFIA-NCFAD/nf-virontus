@@ -1,4 +1,6 @@
 process IQTREE {
+  container 'peterk87/iqtree:v2.1.2'
+
   publishDir "${params.outdir}/iqtree",
              mode: params.publish_dir_mode
 
@@ -16,6 +18,13 @@ process IQTREE {
     -s mafft.fasta \\
     -o \$OUTGROUP \\
     -T ${task.cpus} \\
+    -ninit 2 \\
+    -n 5 \\
+    -me 1.0 \\
+    -nt 4 \\
+    -experimental \\
+    -t NJ-R \\
+    --no-opt-gamma-inv \\
     -m $model \\
     --prefix tree-\$OUTGROUP-${model}_model
   """

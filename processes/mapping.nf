@@ -30,6 +30,6 @@ process MAP {
   samtools stats $bam > ${sample}.stats
   samtools flagstat $bam > ${sample}.flagstat
   samtools idxstats $bam > ${sample}.idxstats
-  samtools depth -a -d 0 $bam | perl -ne 'chomp \$_; print "${sample}\t\$_\n"' > ${sample}-depths.tsv
+  samtools depth -a -d 0 $bam > ${sample}-depths.tsv
   """
 }

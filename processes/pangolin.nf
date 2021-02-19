@@ -14,7 +14,7 @@ process PREPARE_FASTA_FOR_PANGOLIN {
 }
 
 process PANGOLIN {
-  container "covlineages/pangolin:v2.1.7"
+  container "covlineages/pangolin:v2.3.0"
 
   publishDir "${params.outdir}/pangolin",
              pattern: "*.csv",
@@ -37,12 +37,9 @@ process PANGOLIN {
   # update pangolin lineages in case of updates
   git clone --depth 1 https://github.com/cov-lineages/pangoLEARN.git
   pip install --upgrade pangoLEARN/
-  git clone --depth 1 https://github.com/cov-lineages/lineages.git
-  pip install --upgrade lineages/
 
   pangolin \\
     --verbose \\
-    -t ${task.cpus} \\
     $fasta \\
     --outfile $output
   """

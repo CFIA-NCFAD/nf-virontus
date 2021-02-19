@@ -20,17 +20,18 @@ process IVAR_TRIM {
   script:
   ref_name = ref_fasta.getBaseName()
   prefix = "${sample}.trim"
+  keep_reads_no_primer = params.ivar_trim_noprimer ? '' : '-e'
   """
   ivar trim \\
     -i ${bam[0]} \\
     -b $bedfile \\
-    -p trim -q 1 -m 20 -s 4 -e
+    -p trim -q 1 -m 20 -s 4 $keep_reads_no_primer
   samtools sort -o ${prefix}.bam trim.bam
   samtools index ${prefix}.bam
   rm trim.bam
   samtools stats ${prefix}.bam > ${prefix}.stats
   samtools flagstat ${prefix}.bam > ${prefix}.flagstat
   samtools idxstats ${prefix}.bam > ${prefix}.idxstats
-  samtools depth -a -d 0 ${prefix}.bam | perl -ne 'chomp \$_; print "${sample}\t\$_\n"' > ${prefix}-depths.tsv
+  samtools depth -a -d 0 ${prefix}.bam > ${prefix}-depths.tsv
   """
 }

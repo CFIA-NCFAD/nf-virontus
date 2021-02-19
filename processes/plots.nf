@@ -21,6 +21,7 @@ process COVERAGE_PLOT {
     -v $vcf \\
     --sample-name $sample \\
     --no-highlight \\
+    --low-coverage ${params.low_coverage} \\
     -o ${prefix}.variants.pdf
 
   plot_coverage.py \\
@@ -29,6 +30,7 @@ process COVERAGE_PLOT {
     --sample-name $sample \\
     --log-scale-y \\
     --no-highlight \\
+    --low-coverage ${params.low_coverage} \\
     -o ${prefix}.variants.log-scale-y.pdf
 
   # coverage plot highlighting low/no coverage regions
@@ -36,11 +38,13 @@ process COVERAGE_PLOT {
     -d $depths \\
     --sample-name $sample \\
     --log-scale-y \\
+    --low-coverage ${params.low_coverage} \\
     -o ${prefix}.log-scale-y.highlight-no-low-cov.pdf
 
   plot_coverage.py \\
     -d $depths \\
     --sample-name $sample \\
+    --low-coverage ${params.low_coverage} \\
     -o ${prefix}.highlight-no-low-cov.pdf
 
   # coverage plot no highlighting
@@ -49,12 +53,14 @@ process COVERAGE_PLOT {
     --sample-name $sample \\
     --log-scale-y \\
     --no-highlight \\
+    --low-coverage ${params.low_coverage} \\
     -o ${prefix}.log-scale-y.pdf
 
   plot_coverage.py \\
     -d $depths \\
     --sample-name $sample \\
     --no-highlight \\
+    --low-coverage ${params.low_coverage} \\
     -o ${prefix}.pdf
   """
 }
