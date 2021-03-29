@@ -8,21 +8,7 @@ Oxford Nanopore viral sequence analysis pipeline.
 
 [![Docker](https://img.shields.io/docker/automated/peterk87/nf-virontus.svg)](https://hub.docker.com/r/peterk87/nf-virontus)
 
-**Table of Contents**
-
-* [peterk87/nf-virontus](#peterk87nf-virontus)
-  * [Introduction](#introduction)
-  * [Installation](#installation)
-    * [1) Install <a href="https://www.nextflow.io" rel="nofollow">Nextflow</a>](#1-install-nextflow)
-    * [2) Install <a href="https://sylabs.io/guides/3.5/user-guide/" rel="nofollow">Singularity</a>](#2-install-singularity)
-    * [3) Install Virontus](#3-install-virontus)
-  * [Usage](#usage)
-    * [Preparing your data](#preparing-your-data)
-     * [Recommended Steps](#recommended-steps)
-    * [Example](#example)
-  * [Credits](#credits)
-
-### Introduction
+## Introduction
 
 This pipeline performs read mapping and variant calling with [Minimap2] and [Medaka] with [Longshot] variant annotation. A consensus sequence is generated from major variants and variants that would not cause potential frameshift mutations using [Bcftools] with masking of low coverage depth regions with `N` characters.
 
@@ -30,13 +16,13 @@ Optionally, amplicon primers can be trimmed with [iVar] if a BED file of primer 
 
 If read mapping against the SARS-CoV-2 reference genome Wuhan-Hu-1 ([MN908947.3](https://www.ncbi.nlm.nih.gov/nuccore/MN908947.3/)) is being performed, then [Pangolin] global SARS-CoV-2 lineage assignment will be performed.
 
-### Installation
+## Installation
 
-You will need to install [Nextflow] in order to run the Virontus pipeline. 
+You will need to install [Nextflow] in order to run the Virontus pipeline.
 
 > **NB:** [Singularity] or [Docker] is recommended for portable and reproducible execution of the pipeline with the `-profile singularity` or `-profile docker` command-line argument.
 
-#### 1) Install [Nextflow]
+### 1) Install [Nextflow]
 
 If you have [Conda] installed, you can install [Nextflow] with the following command:
 
@@ -44,12 +30,12 @@ If you have [Conda] installed, you can install [Nextflow] with the following com
 conda install -c bioconda -c conda-forge nextflow
 ```
 
-#### 2) Install [Docker][] and/or [Singularity][]
+### 2) Install [Docker][] and/or [Singularity][]
 
 Installing [Docker][] and/or [Singularity] is optional but recommended for portability and reproducibility of results.
 
 
-#### 3) Install Virontus
+### 3) Install Virontus
 
 Nextflow will automatically download the latest version of Virontus. You can show the Virontus help message with usage information with:
 
@@ -57,8 +43,7 @@ Nextflow will automatically download the latest version of Virontus. You can sho
 nextflow run peterk87/nf-virontus --help
 ```
 
-
-### Usage
+## Usage
 
 Basic usage for mapping to SARS-CoV-2 reference genome [MN908947.3](https://www.ncbi.nlm.nih.gov/nuccore/MN908947.3/) and [ARTIC V3 protocol](https://github.com/artic-network/artic-ncov2019/tree/master/primer_schemes/nCoV-2019/V3) primers:
 
@@ -87,14 +72,29 @@ nextflow run peterk87/nf-virontus --help
 
 > **NB:** See the [usage docs](docs/usage.md) for more info.
 
-### Credits
+## Output
+
+* [Concatenated FASTQ Reads](docs/output.md#concatenated-fastq-reads) - Concatenation and Gzip compression of FASTQ reads
+* [Read Mapping](docs/output.md#read-mapping) - Read mapping using [Minimap2][] and read mapping stats calculation with [Samtools][]
+* [Mosdepth](docs/output.md#mosdepth) - Coverage stats calculated by [Mosdepth][]
+* [Variant Calling](docs/output.md#variant-calling) - Variant calling using the Oxford Nanopore Technologies variant caller [Medaka] with annotation by [Longshot].
+* [Variant Filtering](docs/output.md#variant-filtering) - Variant filtering for major/minor variants is performed for SnpEff variant effect analysis, consensus sequence generation and high confidence variant statistics for MultiQC report.
+* [SnpEff](docs/output.md#snpeff) - SnpEff variant effect analysis on major and minor variants.
+* [Consensus Sequence](docs/output.md#consensus-sequence) - Consensus sequence with `N` masking of low/no coverage positions.
+* [Pangolin](docs/output.md#pangolin) - SARS-CoV-2 global lineage assignment using [Pangolin][] if using SARS-CoV-2 Wuhan-Hu-1 MN908947.3 as reference.
+* [Coverage Plots](docs/output.md#coverage-plots) - Coverage plots with/without low/no coverage and/or variants highlighted with linear and log10 scaling of y-axis depth values.
+* [Phylogenetic Tree](docs/output.md#phylogenetic-tree) - [IQ-TREE] maximum-likelihood phylogenetic tree from [MAFFT] multiple sequence alignment of sample consensus sequences and user provided sequences with reference sequence set as outgroup.
+* [MultiQC](docs/output.md#multiqc) - Aggregate report describing results from the whole pipeline
+* [Pipeline information](docs/output.md#pipeline-information) - Report metrics generated during the workflow execution
+
+See the [output docs](docs/output.md) for more info.
+
+## Credits
 peterk87/nf-virontus was originally written by Peter Kruczkiewicz.
 
-Bootstrapped with [nf-core/tools](https://github.com/nf-core/tools) `nf-core create`. 
+Bootstrapped with [nf-core/tools](https://github.com/nf-core/tools) `nf-core create`.
 
 Thank you to the [nf-core/tools](https://github.com/nf-core/tools) team for a great tool for bootstrapping creation of a production ready Nextflow workflows.
-
-
 
 [Bcftools]: https://samtools.github.io/bcftools/bcftools.html
 [Centrifuge]: https://ccb.jhu.edu/software/centrifuge/manual.shtml
