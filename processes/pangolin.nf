@@ -14,34 +14,36 @@ process PREPARE_FASTA_FOR_PANGOLIN {
 }
 
 process PANGOLIN {
-  container "covlineages/pangolin:v2.3.6"
+  label 'process_low'
+
+  conda (params.enable_conda ? 'bioconda::pangolin=2.3.6' : null)
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+    container 'https://depot.galaxyproject.org/singularity/pangolin:2.3.6--py_0'
+  }
+  } else {
+    container 'quay.io/biocontainers/pangolin:2.3.6--py_0'
+  }
 
   publishDir "${params.outdir}/pangolin",
-             pattern: "*.csv",
-             mode: params.publish_dir_mode
-
-  publishDir "${params.outdir}/pangolin/logs",
-             pattern: ".command.log",
-             saveAs: { "pangolin.log" },
              mode: params.publish_dir_mode
 
   input:
   path(fasta)
 
   output:
-  path(output)
+  path(output), emit: lineage_report
+  path('pangolin.log')
+  path('pangolin.version.txt')
 
   script:
   output = "pangolin.lineage_report.csv"
   """
-  # update pangolin lineages in case of updates
-  git clone --depth 1 https://github.com/cov-lineages/pangoLEARN.git
-  pip install --upgrade pangoLEARN/
-
   pangolin \\
     --verbose \\
     $fasta \\
     --outfile $output
+  pangolin --version | sed "s/pangolin //g" > pangolin.version.txt
+  ln -s .command.log pangolin.log
   """
 }
 

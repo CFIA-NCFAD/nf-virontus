@@ -206,9 +206,9 @@ workflow {
     ch_fasta_for_pangolin \
       | PREPARE_FASTA_FOR_PANGOLIN \
       | collectFile(name: "sequences.fasta", newLine: true) \
-      | PANGOLIN \
-      | PANGOLIN_SUMMARY_FOR_MULTIQC
-    ch_pangolin = PANGOLIN.out
+      | PANGOLIN 
+    PANGOLIN_SUMMARY_FOR_MULTIQC(PANGOLIN.out.lineage_report)
+    ch_pangolin = PANGOLIN.out.lineage_report
     ch_pangolin_mqc = PANGOLIN_SUMMARY_FOR_MULTIQC.out
   } else {
     ch_pangolin = Channel.from([])
