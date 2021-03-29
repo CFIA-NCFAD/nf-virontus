@@ -9,7 +9,6 @@ dependencies:
   - bioconda::kraken2=2.1.1
   - bioconda::longshot
   - bioconda::mafft=7.475
-  - bioconda::medaka=1.2.5
   - bioconda::minimap2=2.17
   - bioconda::mosdepth=0.3.1
   - bioconda::multiqc=1.9
@@ -20,12 +19,14 @@ dependencies:
   - conda-forge::pigz
   - conda-forge::python>=3.6
   - conda-forge::wheel
+  - conda-forge::cxx-compiler
   - pip
   - pip:
     - attrs
     - biopython
     - click>=7.0
     - jedi
+    - medaka==1.2.5
     - numpy
     - odfpy
     - pandas
