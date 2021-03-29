@@ -11,4 +11,3 @@ RUN apt-get update && \
     mamba env create -f /environment.yml && \
     conda clean -a
 ENV PATH /opt/conda/envs/nf-virontus-2.0.0/bin:$PATH
-RUN conda env export --name nf-virontus-2.0.0 > nf-virontus-2.0.0.yml
