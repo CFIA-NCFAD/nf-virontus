@@ -154,8 +154,6 @@ workflow {
     ch_reads | combine(ch_fasta) | MAP
   }
 
-  
-
   // Trim primer sequences from read alignments if primer scheme BED file provided 
   if (primer_bed) {
     IVAR_TRIM(Channel.value(file(primer_bed)), MAP.out.bam)

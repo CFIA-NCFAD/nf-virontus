@@ -241,7 +241,6 @@ Convenience flag for setting [ARTIC V3 primer BED file](https://github.com/artic
 
 Convenience flag for setting 1200bp [Freed et al (2020)](https://academic.oup.com/biomethods/article/5/1/bpaa014/5873518) [primer BED file](https://zenodo.org/record/3897530) for primer trimming.
 
-
 ### Variant calling options
 
 Various options for the variant calling branch of the pipeline.

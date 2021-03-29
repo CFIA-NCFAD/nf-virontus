@@ -24,10 +24,10 @@
   > Wood DE, Lu J, Langmead B. Improved metagenomic analysis with Kraken 2. Genome Biol. 2019 Nov 28;20(1):257. doi: 10.1186/s13059-019-1891-0. PubMed PMID: 31779668; PubMed Central PMCID: PMC6883579.
 
 * [Longshot](https://www.nature.com/articles/s41467-019-12493-y)
-  > Edge, P. and Bansal, V., 2019. Longshot enables accurate variant calling in diploid genomes from single-molecule long read sequencing. Nature communications, 10(1), pp.1-10. https://doi.org/10.1038/s41467-019-12493-y
+  > Edge, P. and Bansal, V., 2019. Longshot enables accurate variant calling in diploid genomes from single-molecule long read sequencing. Nature communications, 10(1), pp.1-10. doi: [10.1038/s41467-019-12493-y](https://doi.org/10.1038/s41467-019-12493-y)
 
 * [MAFFT](https://mafft.cbrc.jp/alignment/software/)
-  > Katoh K and Standley DM. 2013. MAFFT Multiple Sequence Alignment Software Version 7: Improvements in Performance and Usability. Molecular Biology and Evolution, 30:772-780. https://doi.org/10.1093/molbev/mst010
+  > Katoh K and Standley DM. 2013. MAFFT Multiple Sequence Alignment Software Version 7: Improvements in Performance and Usability. Molecular Biology and Evolution, 30:772-780. doi: [10.1093/molbev/mst010](https://doi.org/10.1093/molbev/mst010)
 
 * [Medaka](https://github.com/nanoporetech/medaka)
 

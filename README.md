@@ -34,7 +34,6 @@ conda install -c bioconda -c conda-forge nextflow
 
 Installing [Docker][] and/or [Singularity] is optional but recommended for portability and reproducibility of results.
 
-
 ### 3) Install Virontus
 
 Nextflow will automatically download the latest version of Virontus. You can show the Virontus help message with usage information with:
@@ -90,6 +89,7 @@ nextflow run peterk87/nf-virontus --help
 See the [output docs](docs/output.md) for more info.
 
 ## Credits
+
 peterk87/nf-virontus was originally written by Peter Kruczkiewicz.
 
 Bootstrapped with [nf-core/tools](https://github.com/nf-core/tools) `nf-core create`.
