@@ -19,7 +19,6 @@ process PANGOLIN {
   conda (params.enable_conda ? 'bioconda::pangolin=2.3.6' : null)
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
     container 'https://depot.galaxyproject.org/singularity/pangolin:2.3.6--py_0'
-  }
   } else {
     container 'quay.io/biocontainers/pangolin:2.3.6--py_0'
   }
