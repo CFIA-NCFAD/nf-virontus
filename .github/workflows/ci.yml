@@ -34,13 +34,13 @@ jobs:
 
       - name: Build new docker image
         if: env.GIT_DIFF
-        run: docker build --no-cache . -t peterk87/nf-virontus:1.0.0
+        run: docker build --no-cache . -t peterk87/nf-virontus:2.0.0
 
       - name: Pull docker image
         if: ${{ !env.GIT_DIFF }}
         run: |
           docker pull peterk87/nf-virontus:dev
-          docker tag peterk87/nf-virontus:dev peterk87/nf-virontus:1.0.0
+          docker tag peterk87/nf-virontus:dev peterk87/nf-virontus:2.0.0
 
       - name: Install Nextflow
         run: |

@@ -14,7 +14,7 @@ process PREPARE_FASTA_FOR_PANGOLIN {
 }
 
 process PANGOLIN {
-  container "covlineages/pangolin:v2.3.0"
+  container "covlineages/pangolin:v2.3.6"
 
   publishDir "${params.outdir}/pangolin",
              pattern: "*.csv",

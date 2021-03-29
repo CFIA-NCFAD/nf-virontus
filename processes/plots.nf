@@ -66,6 +66,8 @@ process COVERAGE_PLOT {
 }
 
 process BASIC_TREE_PLOT {
+  publishDir "${params.outdir}/plots/tree",
+             mode: params.publish_dir_mode
   input:
   path(iqtree_output)
   path(pangolin_report)

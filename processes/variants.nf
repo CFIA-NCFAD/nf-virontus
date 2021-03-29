@@ -19,21 +19,17 @@ process MEDAKA_LONGSHOT {
   vcf = "${sample}.vcf"
   """
   samtools faidx $ref_fasta
-  medaka consensus \\
-    --chunk_len $params.medaka_chunk_len \\
-    --chunk_ovlp $params.medaka_chunk_overlap \\
-    ${bam[0]} \\
-    medaka.hdf
-  medaka variant \\
-    $ref_fasta \\
-    medaka.hdf \\
-    medaka.vcf
+  medaka_variant \\
+    -t ${task.cpus} \\
+    -f $ref_fasta \\
+    -i ${bam[0]} \\
+    -m $params.medaka_model
   longshot \\
     -P 0 \\
     -F \\
     -A \\
     --no_haps \\
-    --potential_variants medaka.vcf \\
+    --potential_variants medaka_variant/round_1.vcf \\
     --bam ${bam[0]} \\
     --ref $ref_fasta \\
     --out $vcf

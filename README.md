@@ -44,9 +44,9 @@ If you have [Conda] installed, you can install [Nextflow] with the following com
 conda install -c bioconda -c conda-forge nextflow
 ```
 
-#### 2) Install [Singularity][]
+#### 2) Install [Docker][] and/or [Singularity][]
 
-Installing [Singularity] is optional but recommended for portability and reproducibility of results. 
+Installing [Docker][] and/or [Singularity] is optional but recommended for portability and reproducibility of results.
 
 
 #### 3) Install Virontus

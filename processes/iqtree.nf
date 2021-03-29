@@ -13,7 +13,7 @@ process IQTREE {
 
   script:
   """
-  OUTGROUP=`grep '^>' mafft.fasta | head -n1 | sed -r 's/>(\\S+)/\\1/'`
+  OUTGROUP=\$(head -n1 mafft.fasta | sed -r 's/>(\\S+)/\\1/')
   iqtree \\
     -s mafft.fasta \\
     -o \$OUTGROUP \\

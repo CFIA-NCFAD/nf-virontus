@@ -5,7 +5,6 @@ nextflow.enable.dsl = 2
 include {
   checkFileExists;
   checkKraken2Db;
-  checkTaxids;
   check_sample_sheet;
 } from './lib/helpers'
 
@@ -29,7 +28,6 @@ if (workflow.profile == 'slurm' && params.slurm_queue == "") {
 }
 
 if (params.kraken2_db) {
-  taxids = checkTaxids(params.taxids)
   checkKraken2Db(params.kraken2_db)
 }
 
@@ -98,22 +96,12 @@ log.info Schema.params_summary_log(workflow, params, json_schema)
 // PROCESSES
 //=============================================================================
 
-include {
-  SOFTWARE_VERSIONS
-} from './processes/docs'
-include {
-  CHECK_SAMPLE_SHEET;
-  CAT_FASTQ
-} from './processes/misc'
-include {
-  MAP
-} from './processes/mapping'
-include {
-  MOSDEPTH_GENOME
-} from './processes/mosdepth'
-include {
-  IVAR_TRIM
-} from './processes/ivar'
+include { SOFTWARE_VERSIONS             } from './processes/docs'
+include { CHECK_SAMPLE_SHEET; CAT_FASTQ } from './processes/misc'
+include { KRAKEN2                       } from './processes/kraken2'
+include { MAP                           } from './processes/mapping'
+include { MOSDEPTH_GENOME               } from './processes/mosdepth'
+include { IVAR_TRIM                     } from './processes/ivar'
 include {
   MEDAKA_LONGSHOT;
   VARIANT_FILTER as VARIANT_FILTER_MAJOR;
@@ -121,20 +109,10 @@ include {
   BCFTOOLS_STATS as BCFTOOLS_STATS_PRE_FILTER;
   BCFTOOLS_STATS as BCFTOOLS_STATS_POST_FILTER
 } from './processes/variants'
-include {
-  MAKE_SNPEFF_DB;
-  SNPEFF
-} from './processes/snpeff'
-include {
-  CONSENSUS
-} from './processes/consensus'
-include {
-  COVERAGE_PLOT
-} from './processes/plots'
-include {
-  MULTIQC;
-  CONSENSUS_TO_MULTIQC_HTML
-} from './processes/multiqc'
+include { MAKE_SNPEFF_DB; SNPEFF             } from './processes/snpeff'
+include { CONSENSUS                          } from './processes/consensus'
+include { COVERAGE_PLOT                      } from './processes/plots'
+include { MULTIQC; CONSENSUS_TO_MULTIQC_HTML } from './processes/multiqc'
 
 
 //=============================================================================
@@ -163,8 +141,20 @@ workflow {
   if (gff) {
     MAKE_SNPEFF_DB(Channel.value([index_base, file(fasta), file(gff)]))
   }
-  // Map reads to reference
-  ch_reads | combine(ch_fasta) | MAP
+  // Optional host subtraction with Kraken2
+  if (params.kraken2_db && !params.skip_kraken2) {
+    KRAKEN2(file(params.kraken2_db), ch_reads)
+    if (params.subtract_host) {
+      KRAKEN2.out.unclassified_reads | combine(ch_fasta) | MAP
+    } else {
+      ch_reads | combine(ch_fasta) | MAP
+    }
+  } else {
+    // Map reads to reference
+    ch_reads | combine(ch_fasta) | MAP
+  }
+
+  
 
   // Trim primer sequences from read alignments if primer scheme BED file provided 
   if (primer_bed) {
@@ -247,11 +237,6 @@ workflow {
     // TODO: merge optionally specified metadata
   } else {
     ch_basic_tree_plot = Channel.from([])
-  }
-
-  // Metagenomic classification by Kraken2
-  if (params.kraken2_db && !params.skip_kraken) {
-    KRAKEN2(file(params.kraken2_db), ch_reads)
   }
 
   workflow_summary    = Schema.params_summary_multiqc(workflow, summary_params)
