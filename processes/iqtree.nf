@@ -1,4 +1,5 @@
 process IQTREE {
+  label 'process_medium'
   container 'peterk87/iqtree:v2.1.2'
 
   publishDir "${params.outdir}/iqtree",
