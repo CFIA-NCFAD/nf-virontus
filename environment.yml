@@ -5,10 +5,10 @@ channels:
   - defaults
 dependencies:
   - bioconda::bcftools
+  - bioconda::ivar=1.3.1
   - bioconda::kraken2=2.1.1
   - bioconda::longshot
   - bioconda::minimap2=2.17
-  - bioconda::mosdepth=0.3.1
   - bioconda::multiqc=1.9
   - bioconda::pbgzip
   - bioconda::samtools

@@ -2,13 +2,6 @@ process IVAR_TRIM {
   tag "$sample - $ref_name"
   label "process_low"
 
-  conda (params.enable_conda ? "bioconda::ivar=1.3.1" : null)
-  if (workflow.containerEngine == 'singularity') {
-    container "https://depot.galaxyproject.org/singularity/ivar:1.3.1--h089eab3_0"
-  } else {
-    container 'quay.io/biocontainers/ivar:1.3.1--h089eab3_0'
-  }
-
   publishDir "${params.outdir}/mapping/$sample",
     mode: params.publish_dir_mode
 
