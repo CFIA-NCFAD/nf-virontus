@@ -68,7 +68,10 @@ def get_aa(s: str) -> str:
     out = ''
     for i in range(0, len(s), 3):
         aa = s[i: i + 3]
-        aa_code = aa_codes[aa.upper()]
+        try:
+            aa_code = aa_codes[aa.upper()]
+        except KeyError:
+            aa_code = aa
         out += aa_code
     return out
 
