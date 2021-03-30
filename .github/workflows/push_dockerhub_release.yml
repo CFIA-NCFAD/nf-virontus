@@ -1,18 +1,15 @@
-name: Docker push
+name: Docker push (release)
 # This builds the docker image and pushes it to DockerHub
-# Runs on nf-virontus repo releases and push event to 'dev' branch (PR merges)
+# Runs on repo releases and push event to 'dev' branch (PR merges)
 on:
-  push:
-    branches:
-      - dev
   release:
     types: [published]
 
 jobs:
   push_dockerhub:
-    name: Push new Docker image to Docker Hub
+    name: Push new Docker image to Docker Hub (release)
     runs-on: ubuntu-latest
-    # Only run for the peterk87/nf-virontus repo, for releases and merged PRs
+    # Only run for the repo, for releases and merged PRs
     if: ${{ github.repository == 'peterk87/nf-virontus' }}
     env:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
@@ -24,15 +21,7 @@ jobs:
       - name: Build new docker image
         run: docker build --no-cache . -t peterk87/nf-virontus:latest
 
-      - name: Push Docker image to DockerHub (dev)
-        if: ${{ github.event_name == 'push' }}
-        run: |
-          echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
-          docker tag peterk87/nf-virontus:latest peterk87/nf-virontus:dev
-          docker push peterk87/nf-virontus:dev
-
       - name: Push Docker image to DockerHub (release)
-        if: ${{ github.event_name == 'release' }}
         run: |
           echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USERNAME" --password-stdin
           docker push peterk87/nf-virontus:latest

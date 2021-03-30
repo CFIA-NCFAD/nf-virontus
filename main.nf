@@ -12,15 +12,17 @@ def json_schema = "$projectDir/nextflow_schema.json"
 // Show help message if --help specified
 if (params.help){
   def command = "nextflow run peterk87/nf-virontus --input samplesheet.csv --genome 'MN908947.3' --artic_v3 -profile docker"
-  log.info Schema.params_help(workflow, params, json_schema, command)
+  log.info NfcoreSchema.params_help(workflow, params, json_schema, command)
   exit 0
 }
-
-
 
 //=============================================================================
 // CHECK PARAMS
 //=============================================================================
+
+if (params.validate_params) {
+  NfcoreSchema.validateParameters(params, json_schema, log)
+}
 
 if (workflow.profile == 'slurm' && params.slurm_queue == "") {
   log.error "You must specify a valid SLURM queue (e.g. '--slurm_queue <queue name>' (see `\$ sinfo` output for available queues)) to run this workflow with the 'slurm' profile!"
@@ -88,8 +90,8 @@ if (genome == 'MN908947.3' && !primer_bed) {
 // LOG PARAMS SUMMARY
 //=============================================================================
 
-def summary_params = Schema.params_summary_map(workflow, params, json_schema)
-log.info Schema.params_summary_log(workflow, params, json_schema)
+def summary_params = NfcoreSchema.params_summary_map(workflow, params, json_schema)
+log.info NfcoreSchema.params_summary_log(workflow, params, json_schema)
 
 
 //=============================================================================
