@@ -75,6 +75,15 @@ def get_aa(s: str) -> str:
 
 def main(snpsift_input: Path = typer.Argument(None, help='SnpSift tab-delimited table of variant effects'), 
          output: Path = typer.Argument(None, help='Ouput simple SnpSift table')):
+    from rich.traceback import install
+    install(show_locals=True, width=120, word_wrap=True)
+
+    logging.basicConfig(format='%(message)s',
+                        datefmt='[%Y-%m-%d %X]',
+                        level=logging.INFO if not verbose else logging.DEBUG,
+                        handlers=[RichHandler(rich_tracebacks=True,
+                                              tracebacks_show_locals=True)])
+
     df = pd.read_table(snpsift_input)
     series = []
     for c in df.columns:
