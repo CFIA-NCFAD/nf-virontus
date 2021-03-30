@@ -80,7 +80,7 @@ def main(snpsift_input: Path = typer.Argument(None, help='SnpSift tab-delimited 
 
     logging.basicConfig(format='%(message)s',
                         datefmt='[%Y-%m-%d %X]',
-                        level=logging.INFO if not verbose else logging.DEBUG,
+                        level=logging.DEBUG,
                         handlers=[RichHandler(rich_tracebacks=True,
                                               tracebacks_show_locals=True)])
 
