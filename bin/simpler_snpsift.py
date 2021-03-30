@@ -44,13 +44,22 @@ def parse_aa(gene: str,
              alt: str,
              nt_pos: int,
              aa_pos: int,
-             snpeff_aa: str) -> str:
+             snpeff_aa: str,
+             effect: str) -> str:
     m = re.match(r'p\.([a-zA-Z]+)(\d+)([a-zA-Z]+)', snpeff_aa)
     if snpeff_aa == '.' or m is None:
         return f'{ref}{nt_pos}{alt}'
-    
     ref_aa, aa_pos_str, alt_aa = m.groups()
     ref_aa = get_aa(ref_aa)
+
+    if effect == 'stop_lost':
+        alt_aa = get_aa(alt_aa.replace('ext', ''))
+        return f'{ref}{nt_pos}{alt}({gene}:{ref_aa}{aa_pos}{alt_aa}[stop_lost])'
+    if effect == 'frameshift_variant':
+        return f'{ref}{nt_pos}{alt}({gene}:{ref_aa}{aa_pos}[FRAMESHIFT])'
+    if effect == 'conservative_inframe_deletion':
+        return f'{ref}{nt_pos}{alt}({gene}:{ref_aa}{aa_pos}{alt_aa})'
+
     alt_aa = get_aa(alt_aa)
     return f'{ref}{nt_pos}{alt}({gene}:{ref_aa}{aa_pos}{alt_aa})'
 
@@ -88,13 +97,14 @@ def main(snpsift_input: Path = typer.Argument(None, help='SnpSift tab-delimited 
             series.append(df[c])
     df_out = pd.concat(series, axis=1)
     mutation_desc = []
-    for i, row in df_out.iterrows():
-        mutation_desc.append(parse_aa(gene=row['gene'],
-                                      ref=row['REF'],
-                                      alt=row['ALT'],
-                                      nt_pos=row['POS'],
-                                      aa_pos=row['aa_pos'],
-                                      snpeff_aa=row['aa']))
+    for row in df_out.itertuples():
+        mutation_desc.append(parse_aa(gene=row.gene,
+                                      ref=row.REF,
+                                      alt=row.ALT,
+                                      nt_pos=row.POS,
+                                      aa_pos=row.aa_pos,
+                                      snpeff_aa=row.aa,
+                                      effect=row.effect))
     df_out['mutation'] = mutation_desc
 
     df_out.to_csv(output, sep='\t', index=False)
