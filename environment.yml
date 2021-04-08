@@ -4,7 +4,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
-  - bioconda::bcftools
+  - bioconda::bcftools=1.10.2
   - bioconda::ivar=1.3.1
   - bioconda::kraken2=2.1.1
   - bioconda::longshot
