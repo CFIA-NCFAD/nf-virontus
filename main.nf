@@ -85,6 +85,7 @@ if (genome == 'MN908947.3' && !primer_bed) {
   }
 }
 
+def modules = params.modules.clone()
 
 //=============================================================================
 // LOG PARAMS SUMMARY
@@ -97,31 +98,35 @@ log.info NfcoreSchema.params_summary_log(workflow, params, json_schema)
 //=============================================================================
 // PROCESSES
 //=============================================================================
+// TODO: update paths, process names, etc
+include { SOFTWARE_VERSIONS             } from './modules/local/docs'
+include { CHECK_SAMPLE_SHEET; CAT_FASTQ } from './modules/local/misc'
 
-include { SOFTWARE_VERSIONS             } from './processes/docs'
-include { CHECK_SAMPLE_SHEET; CAT_FASTQ } from './processes/misc'
-include { KRAKEN2                       } from './processes/kraken2'
-include { MAP                           } from './processes/mapping'
-include { MOSDEPTH_GENOME               } from './processes/mosdepth'
-include { IVAR_TRIM                     } from './processes/ivar'
+include { MAP                           } from './modules/local/mapping'
+include { MOSDEPTH_GENOME               } from './modules/local/mosdepth'
+include { IVAR_TRIM                     } from './modules/local/ivar'
 include {
   MEDAKA_LONGSHOT;
   VARIANT_FILTER as VARIANT_FILTER_MAJOR;
   VARIANT_FILTER as VARIANT_FILTER_MINOR;
   BCFTOOLS_STATS as BCFTOOLS_STATS_PRE_FILTER;
   BCFTOOLS_STATS as BCFTOOLS_STATS_POST_FILTER
-} from './processes/variants'
-include { MAKE_SNPEFF_DB; SNPEFF             } from './processes/snpeff'
-include { CONSENSUS                          } from './processes/consensus'
-include { COVERAGE_PLOT                      } from './processes/plots'
-include { MULTIQC; CONSENSUS_TO_MULTIQC_HTML } from './processes/multiqc'
+} from './modules/local/variants'
+include { MAKE_SNPEFF_DB; SNPEFF             } from './modules/local/snpeff'
+include { CONSENSUS                          } from './modules/local/consensus'
+include { COVERAGE_PLOT                      } from './modules/local/plots'
+include { MULTIQC; CONSENSUS_TO_MULTIQC_HTML } from './modules/local/multiqc'
 
+include { PYCOQC      } from './modules/nf-core/software/pycoqc/main'         addParams( options: modules['pycoqc'] )
+include { NANOPLOT    } from './modules/nf-core/software/nanoplot/main'       addParams( options: modules['nanoplot'] )
+include { KRAKEN2_RUN } from './modules/nf-core/software/kraken2/run'         addParams( options: modules['kraken2'] )
 
 //=============================================================================
 // MAIN WORKFLOW
 //=============================================================================
 workflow {
 
+  ch_software_versions = Channel.empty()
   // If sample sheet table provided, 
   //   - validate and write to CSV sample sheet
   //   - use 'check_sample_sheet' method to fetch files for each sample 
@@ -135,7 +140,20 @@ workflow {
     | splitCsv(header: ['sample', 'reads'], sep: ',', skip: 1) \
     | map { check_sample_sheet(it) } \
     | CAT_FASTQ \
+    | map { sample, reads -> [[id: sample, single_end: true], reads]}
     | set {ch_reads}
+
+  if (params.sequencing_summary && !params.skip_pycoqc) {
+    PYCOQC(ch_sequencing_summary)
+  }
+  ch_software_versions = ch_software_versions.mix(PYCOQC.out.version.ifEmpty(null))
+
+  // Nanoplot read level QC
+  if (!params.skip_nanoplot) {
+    NANOPLOT(ch_reads)
+    NANOPLOT.out.version | view
+  }
+  ch_software_versions = ch_software_versions.mix(NANOPLOT.out.version.ifEmpty(null))
 
   // reference fasta into channel
   ch_fasta = Channel.value(file(fasta))
@@ -145,9 +163,9 @@ workflow {
   }
   // Optional host subtraction with Kraken2
   if (params.kraken2_db && !params.skip_kraken2) {
-    KRAKEN2(file(params.kraken2_db), ch_reads)
+    KRAKEN2_RUN(file(params.kraken2_db), ch_reads)
     if (params.subtract_host) {
-      KRAKEN2.out.unclassified_reads | combine(ch_fasta) | MAP
+      KRAKEN2_RUN.out.unclassified | combine(ch_fasta) | MAP
     } else {
       ch_reads | combine(ch_fasta) | MAP
     }

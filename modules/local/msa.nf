@@ -8,16 +8,17 @@ process MAFFT_MSA {
     container 'quay.io/biocontainers/mafft:7.475--h779adbc_1'
   }
 
-  publishDir "${params.outdir}/msa",
-             pattern: "mafft.fasta",
-             mode: params.publish_dir_mode
+  publishDir "${params.outdir}",
+      mode: params.publish_dir_mode,
+      saveAs: { filename -> saveFiles(filename:filename, options:params.options, publish_dir:getSoftwareName(task.process), meta:[:], publish_by_meta:[]) }
 
   input:
   path(fastas)
   path(ref_fasta)
 
   output:
-  path('mafft.fasta')
+  path('mafft.fasta'), emit: msa
+  path('*.version.txt'), emit: version
 
   script:
   """
@@ -28,5 +29,6 @@ process MAFFT_MSA {
     --6merpair \\
     --addfragments input.fasta \\
     $ref_fasta > mafft.fasta
+
   """
 }
