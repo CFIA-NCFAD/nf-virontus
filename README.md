@@ -16,6 +16,85 @@ Optionally, amplicon primers can be trimmed with [iVar] if a BED file of primer 
 
 If read mapping against the SARS-CoV-2 reference genome Wuhan-Hu-1 ([MN908947.3](https://www.ncbi.nlm.nih.gov/nuccore/MN908947.3/)) is being performed, then [Pangolin] global SARS-CoV-2 lineage assignment will be performed.
 
+## Pipeline Overview
+
+```mermaid
+flowchart LR
+    classDef input fill:#fcba64,color:black
+    classDef output fill:#b1fc9c,color:black
+    subgraph legend["<b>Legend"]
+        style legend fill:white,fill-opacity:0.5
+        input([Input]):::input
+        output([Output]):::output
+        process[Process]
+    end
+    
+    subgraph rqc["<b>fa:fa-dna Reads QA/QC</b>"]
+        A([fa:fa-file Filtered Reads FASTQ]):::output
+        FR["fa:fa-check Read QC & Filtering <br><small> fastp, nanoqc"]
+        HR["fa:fa-cancel Dehosting <br><small> Kraken2 (optional)"]
+        RR([fa:fa-file Raw Reads FASTQ]):::input --> FR 
+        FR --> HR
+        HR --> A
+    end
+    rqc --> rs
+    subgraph rs[<b>fa:fa-crosshairs Reference Selection]
+        RS["fa:fa-filter Ref Seq Selection <br><small> de novo assembly & BLAST, Mash, Kraken2"]
+        frs_rs([fa:fa-file Reads FASTQ]):::input
+        frs_rs --> RS
+        R([fa:fa-file Ref Seqs FASTA]):::input --> RS
+        RS --> T([fa:fa-file Top Ref Seq FASTA]):::output
+    end
+
+    rs --> rma
+    rqc --> rma
+
+    subgraph rma[<b>fa:fa-industry Reference Mapped Assembly]
+        direction TB
+        trs([fa:fa-file Top Ref FASTA]):::input
+        fr([fa:fa-file FASTQ]):::input
+        RM["fa:fa-bars-staggered Read Mapping <br><small> Minimap2"]
+        PT["fa:fa-scissors Primer Trimming <br><small> iVar (optional)"]
+        VC["fa:fa-code-compare Variant Calling <br><small> Clair3, Medaka"]
+        VE["fa:fa-flask Variant Effect <br><small> SnpEff, SnpSift (optional)"]
+        BAM([fa:fa-file BAM]):::output
+        D["fa:fa-chart-area Coverage Stats <br><small> Mosdepth, Samtools"]
+        CS["fa:fa-code-merge Make Consensus Sequence <br><small> Bcftools"]
+        vcf([fa:fa-file VCF]):::output
+        muts([fa:fa-table Amino Acid Mutations]):::output
+        covbed([fa:fa-file Coverage BED]):::output
+        fr --> RM
+        trs --> RM
+        trs --> VC
+        RM --> BAM
+        BAM --> PT
+        PT --> BAM
+        BAM --> D
+        BAM --> VC
+        vcf --> VE
+        VE --> vcf
+        VE --> muts
+        VC --> vcf
+        vcf --> CS
+        trs --> CS
+        D --> covbed
+        covbed --> CS
+        CS --> csf([fa:fa-file Consensus Sequence FASTA]):::output
+    end
+    rqc --> reporting
+    rs --> reporting
+    rma --> reporting
+    subgraph reporting[<b>fa:fa-clipboard Reporting & Visualization]
+        MQC[fa:fa-stethoscope MultiQC]
+        MQCR([fa:fa-file MultiQC HTML Report]):::output
+        CP[fa:fa-chart-area Seq Coverage Plots]
+        png([fa:fa-image PNG]):::output
+        pdf([fa:fa-file PDF]):::output
+        MQC --> MQCR
+        CP --> png & pdf
+    end
+```
+
 ## Installation
 
 You will need to install [Nextflow] in order to run the Virontus pipeline.
