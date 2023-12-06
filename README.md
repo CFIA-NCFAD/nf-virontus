@@ -18,7 +18,7 @@ If read mapping against the SARS-CoV-2 reference genome Wuhan-Hu-1 ([MN908947.3]
 
 ## Pipeline Overview
 
-**WIP**
+>*NOTE:* This pipeline is still a work-in-progress. The following diagram shows the planned features and steps of the workflow:
 
 ```mermaid
 flowchart LR
@@ -167,19 +167,8 @@ Thank you to the [nf-core/tools](https://github.com/nf-core/tools) team for a gr
 [Bcftools]: https://samtools.github.io/bcftools/bcftools.html
 [Conda]: https://conda.io/
 [Docker]: https://www.docker.com/
-[IQ-TREE]: http://www.iqtree.org/
 [iVar]: https://github.com/andersen-lab/ivar
-[Kraken2]: https://ccb.jhu.edu/software/kraken2/
-[MAFFT]: https://mafft.cbrc.jp/alignment/software/
-[Matplotlib]: https://matplotlib.org/
 [Minimap2]: https://github.com/lh3/minimap2
-[Mosdepth]: https://github.com/brentp/mosdepth
-[MultiQC]: http://multiqc.info
 [Nextflow]: https://www.nextflow.io
 [Pangolin]: https://github.com/cov-lineages/pangolin/
-[pigz]: https://www.zlib.net/pigz/
-[Samtools]: https://www.htslib.org/
-[seaborn]: https://seaborn.pydata.org/
-[Singularity]: https://sylabs.io/guides/3.5/user-guide/
-[SnpEff]: https://pcingola.github.io/SnpEff/
-[SnpSift]: https://pcingola.github.io/SnpEff/ss_introduction/
+[Singularity]: https://github.com/apptainer/apptainer

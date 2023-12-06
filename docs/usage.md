@@ -326,7 +326,7 @@ This option unsets the '-e' parameter in 'ivar trim' to discard reads without pr
 
 This option unsets the '-e' parameter in 'ivar trim' to discard reads without primers. See [iVar docs for more info](https://andersen-lab.github.io/ivar/html/manualpage.html#autotoc_md16)
 
-### Nextclade analysis options.
+### Nextclade analysis options
 
 #### `--nextclade_dataset`
 
@@ -615,13 +615,13 @@ They are loaded in sequence, so later profiles can overwrite earlier profiles.
 If `-profile` is not specified, the pipeline will run locally and expect all software to be installed and available on the `PATH`. This is _not_ recommended.
 
 - `docker`
-  - A generic configuration profile to be used with [Docker](https://docker.com/)
+  - A generic configuration profile to be used with [Docker][]
 - `singularity`
-  - A generic configuration profile to be used with [Singularity](https://sylabs.io/docs/)
+  - A generic configuration profile to be used with [Singularity][] (aka Apptainer)
 - `conda`/`mamba`
   - Please only use Conda as a last resort i.e. when it's not possible to run the pipeline with Docker or Singularity.
-  - A generic configuration profile to be used with [Conda](https://conda.io/docs/)
-  - Pulls most software from [Bioconda](https://bioconda.github.io/)
+  - A generic configuration profile to be used with [Conda][] or [Mamba][]
+  - Pulls most software from [Bioconda][]
 - `test`
   - A profile with a complete configuration for automated testing
   - Includes links to test data so needs no other parameters
@@ -679,20 +679,12 @@ NXF_OPTS='-Xms1g -Xmx4g'
 ```
 
 [Bcftools]: https://samtools.github.io/bcftools/bcftools.html
+[Bioconda]: https://bioconda.github.io/
 [Clair3]: https://github.com/HKU-BAL/Clair3
 [Conda]: https://conda.io/
 [Docker]: https://www.docker.com/
 [iVar]: https://github.com/andersen-lab/ivar
-[Kraken2]: https://ccb.jhu.edu/software/kraken2/
-[Matplotlib]: https://matplotlib.org/
+[Mamba]: https://mamba.readthedocs.io/en/latest/
 [Minimap2]: https://github.com/lh3/minimap2
-[Mosdepth]: https://github.com/brentp/mosdepth
-[MultiQC]: http://multiqc.info
-[Nextflow]: https://www.nextflow.io
 [Pangolin]: https://github.com/cov-lineages/pangolin/
-[pigz]: https://www.zlib.net/pigz/
-[Samtools]: https://www.htslib.org/
-[seaborn]: https://seaborn.pydata.org/
-[Singularity]: https://sylabs.io/guides/3.5/user-guide/
-[SnpEff]: https://pcingola.github.io/SnpEff/
-[SnpSift]: https://pcingola.github.io/SnpEff/ss_introduction/
+[Singularity]: https://github.com/apptainer/apptainer

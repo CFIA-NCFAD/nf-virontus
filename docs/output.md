@@ -75,7 +75,6 @@ By default, the maximum allele fraction or frequency an alternate allele must be
 
 Indel variants that potentially introduce frameshift mutations are also filtered out by default.
 
-
 **Output files:**
 
 * `variants/`
@@ -85,6 +84,25 @@ Indel variants that potentially introduce frameshift mutations are also filtered
   * `${sample}.0.75AF.filt.vcf`: 75% AF filtered VCF
   * `${sample}.0.25AF.filt.vcf`: 25% AF filtered VCF
   * `${sample}.clair3.fix.vcf.gz`: unfiltered Clair3 VCF
+
+## SnpEff
+
+[SnpEff][] is used to annotate variants with variant effect and impact.
+
+[SnpSift][] is used to filter variants by variant effect and impact and to convert the VCF file to a tab-delimited table format.
+
+**Output files:**
+
+* `variants/snpeff/`
+  * `*.snpeff.vcf`: SnpEff annotated VCF file
+  * `*.snpeff.vcf.gz`: Gzip compressed SnpEff annotated VCF file
+  * `*.snpeff.vcf.gz.tbi`: Tabix index file for rapid random read access
+  * `*.snpsift.vcf`: SnpSift annotated VCF file
+  * `*.snpsift.vcf.gz`: Gzip compressed SnpSift annotated VCF file
+  * `*.snpsift.vcf.gz.tbi`: Tabix index file for rapid random read access
+  * `*.snpsift.tsv`: SnpSift annotated VCF file converted to tab-delimited table format
+  * `*.snpsift.tsv.gz`: Gzip compressed SnpSift annotated VCF file converted to tab-delimited table format
+  * `*.snpsift.tsv.gz.tbi`: Tabix index file for rapid random read access
 
 ## Consensus Sequence
 
@@ -110,9 +128,9 @@ If the workflow is being run with the SARS-CoV-2 reference genome Wuhan-Hu-1 [MN
 
 ## Coverage Plots
 
-Coverage plots (reference position vs coverage depth) are generated for each sample from the read alignment depths at 
-each position and filtered variants detected. Several plots are created for each sample with and without low/no coverage 
-and/or variants highlighted with linear and log10 scaling of y-axis depth values. Coverage plots figures are generated 
+Coverage plots (reference position vs coverage depth) are generated for each sample from the read alignment depths at
+each position and filtered variants detected. Several plots are created for each sample with and without low/no coverage
+and/or variants highlighted with linear and log10 scaling of y-axis depth values. Coverage plots figures are generated
 using a simple Python script that uses the [Matplotlib][] and [seaborn][] plotting libraries.
 
 **Output files:**

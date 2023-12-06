@@ -173,7 +173,7 @@
     },
     "nextclade_options": {
       "type": "object",
-      "title": "Nextclade analysis options.",
+      "title": "Nextclade analysis options",
       "properties": {
         "nextclade_dataset": {
           "type": "string",
