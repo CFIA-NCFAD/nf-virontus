@@ -1,0 +1,39 @@
+name: CI
+# This workflow runs the pipeline with the minimal test dataset to check that it completes without any syntax errors
+on:
+  push:
+    branches:
+      - dev
+  pull_request:
+  release:
+    types: [published]
+
+env:
+  NXF_ANSI_LOG: false
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Run workflow tests
+    # Only run on push if this is the nf-virontus dev branch (merged PRs)
+    if: ${{ github.event_name != 'push' || (github.event_name == 'push' && github.repository == 'CFIA-NCFAD/nf-virontus') }}
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Nextflow versions: check pipeline minimum and current latest
+        NXF_VER: 
+          - '22.10.0'
+          - 'latest'
+    steps:
+      - name: Check out pipeline code
+        uses: actions/checkout@v2
+      - name: Install Nextflow
+        uses: nf-core/setup-nextflow@v1
+        with:
+          version: ${{ matrix.NXF_VER }}
+      - name: Run pipeline with test data
+        run: |
+          nextflow run ${GITHUB_WORKSPACE} -profile test,docker
