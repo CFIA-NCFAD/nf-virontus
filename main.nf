@@ -1,6 +1,6 @@
 #!/usr/bin/env nextflow
 
-nextflow.preview.dsl = 2
+nextflow.enable.dsl = 2
 
 def helpMessage() {
   // Log colors ANSI codes
