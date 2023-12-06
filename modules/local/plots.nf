@@ -1,19 +1,28 @@
 process COVERAGE_PLOT {
+  tag "$meta.id"
   publishDir "${params.outdir}/plots/coverage",
     mode: params.publish_dir_mode
 
+  conda 'python=3.9 conda-forge::typer=0.3.2 conda-forge::rich=10.6.0 conda-forge::seaborn=0.11.0 conda-forge::pandas=1.3.0 bioconda::bcbio-gff=0.6.6 bioconda::dna_features_viewer=3.0.3'
+
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+    container 'https://depot.galaxyproject.org/singularity/mulled-v2-596f42d854e849eb773ecd1b48f2b698c2d09c9f:400d0a2593841aa0bfa3402fe85debd55a29cf37-0'
+  } else {
+    container 'quay.io/biocontainers/mulled-v2-596f42d854e849eb773ecd1b48f2b698c2d09c9f:400d0a2593841aa0bfa3402fe85debd55a29cf37-0'
+  }
+
+
   input:
-  tuple val(sample),
-        path(ref_fasta),
-        path(vcf),
-        path(depths)
+  tuple val(meta), path(vcf), path(depths)
+  path(ref_fasta)
   
   output:
   path("*.pdf")
 
   script:
-  ref_name = ref_fasta.getBaseName()
-  prefix = "${sample}.${ref_name}.coverage"
+  def ref_name = ref_fasta.getBaseName()
+  def prefix = "${meta.id}.${ref_name}.coverage"
+  def sample = meta.id
   """
   # coverage plot with variants
   plot_coverage.py \\

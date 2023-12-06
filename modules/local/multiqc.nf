@@ -1,5 +1,10 @@
 process MULTIQC {
-  publishDir "${params.outdir}/MultiQC", mode: params.publish_dir_mode
+  conda 'bioconda::multiqc=1.14'
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+    container 'https://depot.galaxyproject.org/singularity/multiqc:1.11--pyhdfd78af_0'
+  } else {
+    container 'quay.io/biocontainers/multiqc:1.11--pyhdfd78af_0'
+  }
 
   input:
   path(multiqc_config)

@@ -6,7 +6,7 @@ import logging
 from io import TextIOWrapper
 from os import PathLike
 from pathlib import Path
-from typing import TextIO, Union, Tuple
+from typing import TextIO, Union, Tuple, Optional
 
 import pandas as pd
 import typer
@@ -14,18 +14,18 @@ from rich.console import Console
 from rich.logging import RichHandler
 
 
-VCF_COL_DTYPES: dict = dict(CHROM='category',
+VCF_COL_DTYPES: dict = dict(CHROM=str,
                             POS='uint32',
-                            ID='category',
-                            REF='category',
-                            ALT='category',
+                            ID=str,
+                            REF=str,
+                            ALT=str,
                             QUAL=float,
-                            FILTER='category',
+                            FILTER=str,
                             INFO=str,
                             FORMAT=str)
 
 
-def read_vcf(vcf_file: Union[PathLike, TextIOWrapper, TextIO]) -> Tuple[str, pd.DataFrame]:
+def read_vcf(vcf_file: Union[PathLike, TextIOWrapper, TextIO]) -> Tuple[str, Optional[pd.DataFrame]]:
     """Read VCF file into a DataFrame"""
     header = ''
     with vcf_file if isinstance(vcf_file, (TextIOWrapper, TextIO)) else open(vcf_file) as fh:
@@ -35,18 +35,26 @@ def read_vcf(vcf_file: Union[PathLike, TextIOWrapper, TextIO]) -> Tuple[str, pd.
             if line.startswith('#CHROM'):
                 vcf_cols = line[1:].strip().split('\t')
                 break
-        df = pd.read_table(fh,
-                           comment='#',
-                           header=None,
-                           names=vcf_cols,
-                           dtype=VCF_COL_DTYPES)
+        try:
+            df = pd.read_table(fh,
+                               comment='#',
+                               header=None,
+                               names=vcf_cols,
+                               dtype=VCF_COL_DTYPES)
+        except ValueError:
+            df = None
     return header, df
 
 
-def write_vcf(vcf_file: Union[PathLike, TextIOWrapper, TextIO], header: str, df: pd.DataFrame) -> None:
+def write_vcf(
+    vcf_file: Union[PathLike, TextIOWrapper, TextIO], 
+    header: str, 
+    df: Optional[pd.DataFrame]
+) -> None:
     with vcf_file if isinstance(vcf_file, (TextIOWrapper, TextIO)) else open(vcf_file, 'w') as fh:
         fh.write(header)
-        df.to_csv(fh, sep='\t', header=False, index=False)
+        if df is not None and not df.empty:
+            df.to_csv(fh, sep='\t', header=False, index=False)
 
 
 def main(input_vcf: Path = typer.Argument(None, help='VCF file to filter'), 
@@ -72,19 +80,18 @@ def main(input_vcf: Path = typer.Argument(None, help='VCF file to filter'),
         log.warning(f'input_vcf not a file or stdin stream!')
         sys.exit(1)
 
-    # reader = vcfpy.Reader.from_stream(input_vcf) if isinstance(input_vcf, TextIOWrapper) else vcfpy.Reader.from_path(input_vcf)
     header, df = read_vcf(input_vcf if input_vcf else sys.stdin)
-    # writer = vcfpy.Writer.from_stream(output_vcf, reader.header) if isinstance(output_vcf, TextIOWrapper) else vcfpy.Writer.from_path(output_vcf, reader.header)
-    # for idx, rec in reader.iterrows():
-    potential_frameshift_mask = df.apply(lambda x:  (len(x.ALT) - len(x.REF)) % 3 == 0, axis=1)
-    df_filtered = df[potential_frameshift_mask]
-
-    # log any potential frameshift variants that are going to be filtered out in output VCF
-    if (~potential_frameshift_mask).any():
-        log.info(f'{(~potential_frameshift_mask).sum()} frameshift variants filtered out')
-        for _, row in df[~potential_frameshift_mask].iterrows():
-            log.info(row)
-
+    if df is None or df.empty:
+        logging.warning(f'VCF has no variants! Either no reads mapped to the reference genome or the sample is identical to the reference.')
+        df_filtered = None
+    else:
+        potential_frameshift_mask = df.apply(lambda x:  (len(x.ALT) - len(x.REF)) % 3 == 0, axis=1)
+        df_filtered = df[potential_frameshift_mask]
+        # log any potential frameshift variants that are going to be filtered out in output VCF
+        if (~potential_frameshift_mask).any():
+            log.info(f'{(~potential_frameshift_mask).sum()} frameshift variants filtered out')
+            for _, row in df[~potential_frameshift_mask].iterrows():
+                log.info(row)
     write_vcf(output_vcf if output_vcf else sys.stdout, header, df_filtered)
 
 

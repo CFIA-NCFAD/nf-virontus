@@ -1,11 +1,12 @@
 process PREPARE_FASTA_FOR_PANGOLIN {
   input:
-  tuple val(sample), path(fasta)
+  tuple val(meta), path(fasta)
 
   output:
   path(output)
 
   script:
+  def sample = "${meta.id}"
   output = "${sample}.fasta"
   """
   cat $fasta > $output
@@ -16,37 +17,44 @@ process PREPARE_FASTA_FOR_PANGOLIN {
 process PANGOLIN {
   label 'process_low'
 
-  conda (params.enable_conda ? 'bioconda::pangolin=2.3.6' : null)
+  conda 'bioconda::pangolin=4.3'
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
-    container 'https://depot.galaxyproject.org/singularity/pangolin:2.3.6--py_0'
+    container 'https://depot.galaxyproject.org/singularity/pangolin:4.3--pyhdfd78af_2'
   } else {
-    container 'quay.io/biocontainers/pangolin:2.3.6--py_0'
+    container 'quay.io/biocontainers/pangolin:4.3--pyhdfd78af_2'
   }
-
-  publishDir "${params.outdir}/pangolin",
-             mode: params.publish_dir_mode
 
   input:
   path(fasta)
 
   output:
-  path(output), emit: lineage_report
-  path('pangolin.log')
-  path('pangolin.version.txt')
+  path 'pangolin.csv' , emit: report
+  path 'pangolin.log' , emit: log
+  path 'versions.yml', emit: versions
 
   script:
-  output = "pangolin.lineage_report.csv"
   """
   pangolin \\
-    --verbose \\
     $fasta \\
-    --outfile $output
-  pangolin --version | sed "s/pangolin //g" > pangolin.version.txt
+    --outfile pangolin.csv \\
+    --threads $task.cpus
   ln -s .command.log pangolin.log
+
+  cat <<-END_VERSIONS > versions.yml
+  "${task.process}":
+      pangolin: \$(pangolin --version | sed "s/pangolin //g")
+  END_VERSIONS
   """
 }
 
 process PANGOLIN_SUMMARY_FOR_MULTIQC {
+  conda 'bioconda::shiptv=0.4.1'
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+    container 'https://depot.galaxyproject.org/singularity/shiptv:0.4.1--pyh5e36f6f_0'
+  } else {
+    container 'quay.io/biocontainers/shiptv:0.4.1--pyh5e36f6f_0'
+  }
+
   input:
   path(input)
 

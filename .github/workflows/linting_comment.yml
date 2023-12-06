@@ -4,7 +4,7 @@ name: nf-core linting comment
 
 on:
   workflow_run:
-    workflows: ["nf-core linting"]
+    workflows: ["Linting"]
 
 jobs:
   test:

@@ -1,37 +1,45 @@
 process IVAR_TRIM {
-  tag "$sample - $ref_name"
+  tag "$meta.id"
   label "process_low"
 
-  publishDir "${params.outdir}/mapping/$sample",
-    mode: params.publish_dir_mode
+  conda 'bioconda::ivar=1.4.2'
+  if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
+    container 'https://depot.galaxyproject.org/singularity/ivar:1.4.2--h0033a41_2'
+  } else {
+    container 'quay.io/biocontainers/ivar:1.4.2--h0033a41_2'
+  }
 
   input:
-  path(bedfile)
-  tuple val(sample),
-        path(ref_fasta),
-        path(bam)
+  tuple val(meta), path(bam), path(bai)
+  path(bed)
+
   output:
-  tuple val(sample),
-        path(ref_fasta),
-        path('*.trim.{bam,bam.bai}'), emit: bam
-  path '*.{flagstat,idxstats,stats}', emit: stats
-  tuple val(sample), path('*-depths.tsv'), emit: depths
+  tuple val(meta), path('*.trim.bam'), path('*.bam.bai'), emit: bam
+  path('*.{flagstat,idxstats,stats}'),                    emit: stats
+  tuple val(meta), path('*.samtools.depth'),              emit: depth
+  path('versions.yml'),                                   emit: versions
 
   script:
-  ref_name = ref_fasta.getBaseName()
-  prefix = "${sample}.trim"
-  keep_reads_no_primer = params.ivar_trim_noprimer ? '' : '-e'
+  def prefix = "${meta.id}.trim"
+  def keep_reads_no_primer = params.ivar_trim_noprimer ? '' : '-e'
   """
   ivar trim \\
-    -i ${bam[0]} \\
-    -b $bedfile \\
-    -p trim -q 1 -m 20 -s 4 $keep_reads_no_primer
+    -i $bam \\
+    -b $bed \\
+    $keep_reads_no_primer \\
+    -q 1 -m 20 -s 4 \\
+    -p trim
   samtools sort -o ${prefix}.bam trim.bam
-  samtools index ${prefix}.bam
   rm trim.bam
+  samtools index ${prefix}.bam
   samtools stats ${prefix}.bam > ${prefix}.stats
   samtools flagstat ${prefix}.bam > ${prefix}.flagstat
   samtools idxstats ${prefix}.bam > ${prefix}.idxstats
-  samtools depth -a -d 0 ${prefix}.bam > ${prefix}-depths.tsv
+  samtools depth -a -d 0 ${prefix}.bam > ${prefix}.samtools.depth
+
+  cat <<-END_VERSIONS > versions.yml
+  "${task.process}":
+      ivar: \$(ivar version | head -n1 | sed 's/iVar version //')
+  END_VERSIONS
   """
 }

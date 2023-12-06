@@ -62,7 +62,7 @@ def checkTaxids(taxids) {
   }
 }
 
-def check_sample_sheet(LinkedHashMap sample_sheet) {
+def check_sample_sheet(sample_sheet) {
   // Check that each entry from a sample sheet
   reads_file = file(sample_sheet.reads, checkIfExists: true)
   reads = sample_sheet.reads ? reads_file : null
