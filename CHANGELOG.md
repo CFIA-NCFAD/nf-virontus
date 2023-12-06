@@ -13,14 +13,14 @@ For SARS-Cov-2 analysis, the `--scov2` flag can be used to specify the MN908947.
 
 ### Changes
 
-- refactor into DSL-2 modules
-- Clair3 variant calling instead of Medaka/Longshot for faster more accurate variant calling esp. at lower coverage depths
-- adapted nf-core/modules processes (Bcftools, Nextclade, Nextalign, PycoQC, NanoPlot, MultiQC)
-- added SnpEff variant effect prediction
-- added SnpSift to parse SnpEff annotations into tab-delimited table like nf-core/viralrecon
-- allele fraction threshold set at 0.75 by default for major variant to be incorporated into consensus sequence
-- added `bin/simpler_snpsift.py` to simplify SnpEff/SnpSift table
-- updated tools and dependencies to latest versions
+* refactor into DSL-2 modules
+* Clair3 variant calling instead of Medaka/Longshot for faster more accurate variant calling esp. at lower coverage depths
+* adapted nf-core/modules processes (Bcftools, Nextclade, Nextalign, PycoQC, NanoPlot, MultiQC)
+* added SnpEff variant effect prediction
+* added SnpSift to parse SnpEff annotations into tab-delimited table like nf-core/viralrecon
+* allele fraction threshold set at 0.75 by default for major variant to be incorporated into consensus sequence
+* added `bin/simpler_snpsift.py` to simplify SnpEff/SnpSift table
+* updated tools and dependencies to latest versions
 
 ## 1.1.0
 
