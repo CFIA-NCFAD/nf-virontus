@@ -17,7 +17,7 @@ This pipeline performs read mapping and variant calling with [Minimap2] and [Cla
 
 Optionally, amplicon primers can be trimmed with [iVar] if a BED file of primer coordinates is supplied.
 
-If read mapping against the SARS-CoV-2 reference genome Wuhan-Hu-1 ([MN908947.3](https://www.ncbi.nlm.nih.gov/nuccore/MN908947.3/)) is being performed, then [Pangolin] global SARS-CoV-2 lineage assignment will be performed. [Nextclade] analysis can be performed as well.
+If read mapping against the SARS-CoV-2 reference genome Wuhan-Hu-1 ([MN908947.3](https://www.ncbi.nlm.nih.gov/nuccore/MN908947.3/)), [Pangolin] lineage assignment will be done, as well as, [Nextclade] analysis.
 
 ## Pipeline Overview
 
@@ -173,5 +173,6 @@ Thank you to the [nf-core/tools](https://github.com/nf-core/tools) team for a gr
 [iVar]: https://github.com/andersen-lab/ivar
 [Minimap2]: https://github.com/lh3/minimap2
 [Nextflow]: https://www.nextflow.io
+[Nextclade]: https://clades.nextstrain.org/
 [Pangolin]: https://github.com/cov-lineages/pangolin/
 [Singularity]: https://github.com/apptainer/apptainer
