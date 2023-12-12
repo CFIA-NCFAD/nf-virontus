@@ -1,0 +1,14 @@
+{
+    "creators": [
+        {
+            "orcid": "0000-0002-0044-9460",
+            "affiliation": "Canadian Food Inspection Agency",
+            "name": "Kruczkiewicz, Peter"
+        },
+        {
+            "affiliation": "Canadian Food Inspection Agency",
+            "name": "Lung, Oliver"
+        }
+    ],
+    "license": "Apache-2.0"
+}
