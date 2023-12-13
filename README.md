@@ -2,7 +2,7 @@
 
 [![GitHub Actions CI](https://github.com/CFIA-NCFAD/nf-virontus/actions/workflows/ci.yml/badge.svg)](https://github.com/CFIA-NCFAD/nf-virontus/actions/workflows/ci.yml)
 [![GitHub Actions Linting Status](https://github.com/CFIA-NCFAD/nf-virontus/actions/workflows/linting.yml/badge.svg)](https://github.com/CFIA-NCFAD/nf-virontus/actions/workflows/linting.yml)
-[![Cite with Zenodo](http://img.shields.io/badge/DOI-10.XXXX/zenodo.XXXX)](https://doi.org/)
+[![Cite with Zenodo](https://zenodo.org/badge/229837060.svg)](https://zenodo.org/doi/10.5281/zenodo.10369022)
 
 [![Nextflow](https://img.shields.io/badge/nextflow-%E2%89%A522.10.1-23aa62.svg)](https://www.nextflow.io/)
 [![run with conda](http://img.shields.io/badge/run%20with-conda-3EB049?labelColor=000000&logo=anaconda)](https://docs.conda.io/en/latest/)
