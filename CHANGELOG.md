@@ -3,6 +3,10 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [[2.0.1dev](https://github.com/CFIA-NCFAD/nf-virontus/releases/tag/2.0.1dev)]
+
+This release fixes an issue where random ambiguous bases are introduced into the consensus sequence by Bcftools (#9)
+
 ## [[2.0.0dev](https://github.com/CFIA-NCFAD/nf-virontus/releases/tag/2.0.0dev)] - 2023-12-06
 
 This release is a major refactor using Nextflow DSL-2 modules and similar process structure and definitions to nf-core pipelines. A single reference genome is assumed for all samples unlike previous versions of nf-virontus that would perform parallel analyses on all provided reference sequences. A smart reference genome selection module is in the works.

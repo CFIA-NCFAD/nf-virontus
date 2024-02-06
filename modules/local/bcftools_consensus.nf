@@ -23,6 +23,7 @@ process BCFTOOLS_CONSENSUS {
   """
   zcat $mosdepth_per_base | awk '\$4<${low_coverage}' > low_cov.bed
   bcftools consensus \\
+    -H A \\
     -f $ref_fasta \\
     -m low_cov.bed \\
     $vcf_gz > $consensus
