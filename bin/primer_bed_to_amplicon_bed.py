@@ -34,7 +34,7 @@ def main(
     logging.info(f'Reading "{input_bed}" into dataframe')
     df_primer = pd.read_table(input_bed, 
         header=None, 
-        names=['genome', 'start_idx', 'end_idx', 'primer', 'pool', 'strand'])
+        names=['genome', 'start_idx', 'end_idx', 'primer', 'pool', 'strand', 'sequence'])
     logging.info(f'Removing left/right primer suffixes "{left_suffix}" and "{right_suffix}" from primer IDs.')
     df_primer['amplicon'] = df_primer.primer.str.replace(f'({left_suffix}|{right_suffix}).*$', '', regex=True)
     logging.info(f'Grouping primers by amplicon names and building amplicon BED file.')
