@@ -270,6 +270,12 @@
           "default": false,
           "fa_icon": "fas fa-fast-forward",
           "description": "Skip [PycoQC](https://github.com/tleonardi/pycoQC)."
+        },
+        "skip_coverage_plot": {
+          "type": "boolean",
+          "default": false,
+          "fa_icon": "fas fa-fast-forward",
+          "description": "Skip generating coverage plots."
         }
       }
     },

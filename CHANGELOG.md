@@ -3,6 +3,10 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [[2.0.2dev](https://github.com/CFIA-NCFAD/nf-virontus/releases/tag/2.0.2dev)]
+
+* hotfix for properly parsing primer BED file with extra `sequence` column
+
 ## [[2.0.1dev](https://github.com/CFIA-NCFAD/nf-virontus/releases/tag/2.0.1dev)]
 
 This release fixes an issue where random ambiguous bases are introduced into the consensus sequence by Bcftools (#9)
