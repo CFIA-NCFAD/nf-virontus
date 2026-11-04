@@ -5,11 +5,11 @@ process CLAIR3 {
   tag "${meta.id}"
   label 'process_low'
 
-  conda 'bioconda::clair3==1.0.4'
+  conda 'bioconda::clair3==2.0.2'
   if (workflow.containerEngine == 'singularity' && !params.singularity_pull_docker_container) {
     container 'https://depot.galaxyproject.org/singularity/clair3:1.0.4--py39hf5e1c6e_3'
   } else {
-    container 'quay.io/biocontainers/clair3:1.0.4--py39hf5e1c6e_3'
+    container 'quay.io/biocontainers/clair3:2.0.2--py311hbc58adc_0'
   }
 
 
